@@ -4,7 +4,9 @@
 
 Unsafe bindings to the NAIF [SPICE Toolkit](https://naif.jpl.nasa.gov/naif/index.html).
 
-## Requirements
+Read the [official CSPICE documentation online](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/index.html)
+
+## Installation
 
 You must first have installed the CSPICE toolkit by downloading and extracting the appropriate archive from 
 [here](https://naif.jpl.nasa.gov/naif/toolkit_C.html).

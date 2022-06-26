@@ -46,7 +46,7 @@ jobs:
         run: mv $CSPICE_DIR/lib/cspice.a $CSPICE_DIR/lib/libcspice.a
 
       - name: Cargo Test
-        run: cargo test -- --nocapture
+        run: cargo test -- --nocapture --test-threads=1
 
       - name: Cargo Clippy Check
         run: cargo clippy --all-features --workspace -- -D warnings
