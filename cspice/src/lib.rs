@@ -2,7 +2,7 @@ mod data;
 pub mod error;
 mod string;
 
-use crate::error::{Error, ErrorAction};
+use crate::error::Error;
 use once_cell::sync::Lazy;
 use std::ptr::null_mut;
 use std::sync::Mutex;
@@ -49,7 +49,7 @@ impl SPICE {
             None => {
                 *thread_id = Some(thread::current().id());
                 let spice = SPICE(null_mut());
-                spice.set_error_action(ErrorAction::Return).unwrap();
+                spice.set_error_defaults();
                 spice
             }
             Some(thread_id) => {
