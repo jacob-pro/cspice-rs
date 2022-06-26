@@ -1,0 +1,64 @@
+name: Build
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  build:
+    runs-on: ${{ matrix.os }}
+    env:
+      CSPICE_DIR: '${{ github.workspace }}/cspice'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            CSPICE_URL: "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/PC_Linux_GCC_64bit/packages/cspice.tar.Z"
+          - os: windows-latest
+            CSPICE_URL: "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/PC_Windows_VisualC_64bit/packages/cspice.zip"
+          - os: macos-latest
+            CSPICE_URL: "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/MacIntel_OSX_AppleC_64bit/packages/cspice.tar.Z"
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download CSPICE
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: wget ${{ matrix.CSPICE_URL }}
+
+      - name: Download CSPICE (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: wget ${{ matrix.CSPICE_URL }} -outfile cspice.zip
+        shell: powershell
+
+      - name: Extract CSPICE
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: tar -zxvf cspice.tar.Z
+
+      - name: Extract CSPICE (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: tar -xf cspice.zip
+
+      - name: Fix libcspice name
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: mv $CSPICE_DIR/lib/cspice.a $CSPICE_DIR/lib/libcspice.a
+
+      - name: Cargo Test
+        run: cargo test -- --nocapture
+
+      - name: Cargo Clippy Check
+        run: cargo clippy --all-features --workspace -- -D warnings
+
+
+  check_style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cargo Format Check
+        run: cargo fmt -- --check
+
+      - name: Cargo Sort Check
+        run: cargo install cargo-sort && cargo-sort --check --workspace
