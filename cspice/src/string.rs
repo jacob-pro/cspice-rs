@@ -50,7 +50,10 @@ impl SpiceString {
     }
 
     pub fn as_str(&self) -> Cow<'_, str> {
-        unsafe { CStr::from_ptr(self.0.as_ptr()).to_string_lossy() }
+        unsafe {
+            let u8slice = &*(self.0.as_slice() as *const [i8] as *const [u8]);
+            CStr::from_bytes_with_nul_unchecked(u8slice).to_string_lossy()
+        }
     }
 }
 
