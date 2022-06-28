@@ -1,4 +1,4 @@
-use crate::string::{FromSpiceString, ToSpiceString};
+use crate::string::SpiceString;
 use crate::{Result, SPICE};
 use cspice_sys::{
     erract_c, errdev_c, failed_c, getmsg_c, qcktrc_c, reset_c, SpiceInt, SPICE_ERROR_LMSGLN,
@@ -32,7 +32,7 @@ pub enum ErrorAction {
 pub enum ErrorDevice {
     Screen,
     Null,
-    Filename(String),
+    Filename(SpiceString),
 }
 
 impl SPICE {
@@ -46,21 +46,21 @@ impl SPICE {
             }
 
             // Gather error info
-            let mut option = "SHORT".to_spice_string();
+            let mut option = SpiceString::from("SHORT");
             let mut short_message = vec![0; SPICE_ERROR_SMSGLN as usize];
             getmsg_c(
                 option.as_mut_ptr(),
                 short_message.len() as SpiceInt,
                 short_message.as_mut_ptr(),
             );
-            let mut option = "EXPLAIN".to_spice_string();
+            let mut option = SpiceString::from("EXPLAIN");
             let mut explanation = vec![0; SPICE_ERROR_XMSGLN as usize];
             getmsg_c(
                 option.as_mut_ptr(),
                 explanation.len() as SpiceInt,
                 explanation.as_mut_ptr(),
             );
-            let mut option = "LONG".to_spice_string();
+            let mut option = SpiceString::from("LONG");
             let mut long_message = vec![0; SPICE_ERROR_LMSGLN as usize];
             getmsg_c(
                 option.as_mut_ptr(),
@@ -74,10 +74,10 @@ impl SPICE {
             reset_c();
 
             Err(Error {
-                short_message: String::from_spice_string(&short_message),
-                explanation: String::from_spice_string(&explanation),
-                long_message: String::from_spice_string(&long_message),
-                traceback: String::from_spice_string(&traceback),
+                short_message: SpiceString::from_buffer(short_message).into(),
+                explanation: SpiceString::from_buffer(explanation).into(),
+                long_message: SpiceString::from_buffer(long_message).into(),
+                traceback: SpiceString::from_buffer(traceback).into(),
             })
         }
     }
@@ -86,8 +86,8 @@ impl SPICE {
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html
     pub fn set_error_action(&self, action: ErrorAction) -> Result<()> {
-        let mut set = "SET".to_spice_string();
-        let mut action = serde_plain::to_string(&action).unwrap().to_spice_string();
+        let mut set = SpiceString::from("SET");
+        let mut action = SpiceString::from(serde_plain::to_string(&action).unwrap());
         unsafe {
             erract_c(set.as_mut_ptr(), 0, action.as_mut_ptr());
         }
@@ -98,7 +98,7 @@ impl SPICE {
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html
     pub fn get_error_action(&self) -> Result<ErrorAction> {
-        let mut get = "GET".to_spice_string();
+        let mut get = SpiceString::from("GET");
         let mut buffer = vec![0; 20];
         unsafe {
             erract_c(
@@ -108,21 +108,20 @@ impl SPICE {
             );
         }
         self.get_last_error()?;
-        let action = String::from_spice_string(&buffer);
-        Ok(serde_plain::from_str(&action).unwrap())
+        let action = SpiceString::from_buffer(buffer);
+        Ok(serde_plain::from_str(&*action.as_str()).unwrap())
     }
 
     /// Set Error Output Device
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html
-    pub fn set_error_output_device(&self, device: &ErrorDevice) -> Result<()> {
-        let mut set = "SET".to_spice_string();
-        let mut device = match &device {
-            ErrorDevice::Screen => "SCREEN",
-            ErrorDevice::Null => "NULL",
+    pub fn set_error_output_device(&self, device: ErrorDevice) -> Result<()> {
+        let mut set = SpiceString::from("SET");
+        let mut device = match device {
+            ErrorDevice::Screen => SpiceString::from("SCREEN"),
+            ErrorDevice::Null => SpiceString::from("NULL"),
             ErrorDevice::Filename(filename) => filename,
-        }
-        .to_spice_string();
+        };
         unsafe {
             errdev_c(set.as_mut_ptr(), 0, device.as_mut_ptr());
         }
@@ -133,7 +132,7 @@ impl SPICE {
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html
     pub fn get_error_output_device(&self) -> Result<ErrorDevice> {
-        let mut get = "GET".to_spice_string();
+        let mut get = SpiceString::from("GET");
         let mut buffer = vec![0; FILEN as usize];
         unsafe {
             errdev_c(
@@ -143,17 +142,17 @@ impl SPICE {
             );
         }
         self.get_last_error()?;
-        let action = String::from_spice_string(&buffer);
+        let action = SpiceString::from_buffer(buffer);
         Ok(match action.as_str() {
-            "SCREEN" => ErrorDevice::Screen,
-            "NULL" => ErrorDevice::Null,
-            filename => ErrorDevice::Filename(filename.to_owned()),
+            s if s == "SCREEN" => ErrorDevice::Screen,
+            s if s == "NULL" => ErrorDevice::Null,
+            _ => ErrorDevice::Filename(action),
         })
     }
 
     pub(crate) fn set_error_defaults(&self) {
         self.set_error_action(ErrorAction::Return).unwrap();
-        self.set_error_output_device(&ErrorDevice::Null).unwrap();
+        self.set_error_output_device(ErrorDevice::Null).unwrap();
     }
 }
 
@@ -178,15 +177,15 @@ mod tests {
     #[test]
     fn test_get_set_error_output_device() {
         let spice = SPICE::get_instance();
-        spice.set_error_output_device(&ErrorDevice::Null).unwrap();
+        spice.set_error_output_device(ErrorDevice::Null).unwrap();
         assert_eq!(spice.get_error_output_device().unwrap(), ErrorDevice::Null);
-        spice.set_error_output_device(&ErrorDevice::Screen).unwrap();
+        spice.set_error_output_device(ErrorDevice::Screen).unwrap();
         assert_eq!(
             spice.get_error_output_device().unwrap(),
             ErrorDevice::Screen
         );
-        let filename = ErrorDevice::Filename("errors.txt".to_owned());
-        spice.set_error_output_device(&filename).unwrap();
+        let filename = ErrorDevice::Filename(SpiceString::from("errors.txt"));
+        spice.set_error_output_device(filename.clone()).unwrap();
         assert_eq!(spice.get_error_output_device().unwrap(), filename);
 
         // Reset so we don't interfere with other tests
