@@ -12,12 +12,10 @@ use std::thread;
 use std::thread::ThreadId;
 use thiserror::Error;
 
-/// SPICE is not a thread safe library.
-///
-/// https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe.
-///
 /// The SPICE struct is used to ensure that the SPICE functions are only ever called from the same
 /// thread.
+///
+/// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe>
 ///
 /// # Example
 ///

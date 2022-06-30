@@ -1,14 +1,25 @@
 use crate::string::StringParam;
 use crate::{Error, SPICE};
-use cspice_sys::furnsh_c;
+use cspice_sys::{furnsh_c, unload_c};
 
+/// Functions for loading and unloading SPICE Kernels
 impl SPICE {
     /// Load one or more SPICE kernels into a program.
     ///
-    /// https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/furnsh_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/furnsh_c.html>
     pub fn furnish<'f, F: Into<StringParam<'f>>>(&self, file: F) -> Result<(), Error> {
         unsafe {
             furnsh_c(file.into().as_mut_ptr());
+        }
+        self.get_last_error()
+    }
+
+    /// Unload a SPICE kernel
+    ///
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/unload_c.html>
+    pub fn unload<'f, F: Into<StringParam<'f>>>(&self, file: F) -> Result<(), Error> {
+        unsafe {
+            unload_c(file.into().as_mut_ptr());
         }
         self.get_last_error()
     }

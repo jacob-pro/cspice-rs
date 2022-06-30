@@ -38,7 +38,7 @@ pub enum ErrorDevice {
 impl SPICE {
     /// Tests, retrieves, and resets the last error if it is present. Otherwise returns Ok.
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Testing%20the%20Error%20Status
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Testing%20the%20Error%20Status>
     #[inline]
     pub fn get_last_error(&self) -> Result<(), Error> {
         unsafe {
@@ -85,7 +85,7 @@ impl SPICE {
 
     /// Set the action when an error occurs in a SPICE function
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html>
     pub fn set_error_action(&self, action: ErrorAction) -> Result<(), Error> {
         let set = SpiceString::from("SET");
         let action = SpiceString::from(serde_plain::to_string(&action).unwrap());
@@ -97,7 +97,7 @@ impl SPICE {
 
     /// Get the action when an error occurs in a SPICE function
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html>
     pub fn get_error_action(&self) -> Result<ErrorAction, Error> {
         let get = SpiceString::from("GET");
         let mut buffer = [0; 20];
@@ -115,7 +115,7 @@ impl SPICE {
 
     /// Set Error Output Device
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html>
     pub fn set_error_output_device(&self, device: ErrorDevice) -> Result<(), Error> {
         let set = SpiceString::from("SET");
         let device = match device {
@@ -131,7 +131,7 @@ impl SPICE {
 
     /// Get Error Output Device
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html>
     pub fn get_error_output_device(&self) -> Result<ErrorDevice, Error> {
         let get = SpiceString::from("GET");
         let mut buffer = [0; FILEN as usize];

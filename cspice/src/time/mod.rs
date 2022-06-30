@@ -1,12 +1,17 @@
+mod date_time;
+mod julian_date;
+
+pub use date_time::DateTime;
+pub use julian_date::JulianDate;
+
 use crate::string::{SpiceStr, SpiceString, StringParam};
 use crate::{Error, SPICE};
 use cspice_sys::{str2et_c, timout_c, SpiceDouble, SpiceInt};
 use std::fmt::{Debug, Display, Formatter};
-use std::marker::PhantomData;
 
 /// Ephemeris Time (time in seconds past the ephemeris epoch J2000) (TDB)
 ///
-/// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/req/time.html#In%20the%20Toolkit%20ET%20Means%20TDB
+/// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/req/time.html#In%20the%20Toolkit%20ET%20Means%20TDB>
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ET(pub SpiceDouble);
 
@@ -18,8 +23,6 @@ impl Display for ET {
 
 impl ET {
     /// Convert an Ephemeris Time (TDB) to a Julian Date
-    ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
     #[inline]
     pub fn to_julian_date<S: Scale>(&self, spice: SPICE) -> JulianDate<S> {
         let pictur = SpiceString::from(format!("JULIAND.############# ::{}", S::name()));
@@ -42,19 +45,27 @@ impl ET {
         jd.to_et(spice)
     }
 
-    /// Convert an Ephemeris Time (TDB) to a DateTime
+    /// Convert an Ephemeris Time (TDB) to a DateTime in a specified time zone
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
-    pub fn to_date_time<C: Calendar, S: Scale>(&self, spice: SPICE) -> DateTime<C, S> {
+    /// # Arguments
+    ///
+    /// * `zone` - Zone offset in seconds
+    #[inline]
+    pub fn to_date_time_with_zone<C: Calendar, S: Scale>(
+        &self,
+        spice: SPICE,
+        zone: i32,
+    ) -> DateTime<C, S> {
         let pictur = SpiceString::from(format!(
             "ERA:YYYY:MM:DD:HR:MN:SC.##### ::{} ::{}",
             S::name(),
             C::short_name()
         ));
         let mut buffer = [0; 100];
+        let zone_adj = self.0 + zone as f64;
         unsafe {
             timout_c(
-                self.0,
+                zone_adj,
                 pictur.as_mut_ptr(),
                 buffer.len() as SpiceInt,
                 buffer.as_mut_ptr(),
@@ -69,16 +80,21 @@ impl ET {
         } else {
             split[1].trim().parse().unwrap()
         };
-        DateTime {
+        DateTime::with_zone(
             year,
-            month: split[2].parse().unwrap(),
-            day: split[3].parse().unwrap(),
-            hour: split[4].parse().unwrap(),
-            minute: split[5].parse().unwrap(),
-            second: split[6].parse().unwrap(),
-            calendar: Default::default(),
-            scale: Default::default(),
-        }
+            split[2].parse().unwrap(),
+            split[3].parse().unwrap(),
+            split[4].parse().unwrap(),
+            split[5].parse().unwrap(),
+            split[6].parse().unwrap(),
+            zone,
+        )
+    }
+
+    /// Convert an Ephemeris Time (TDB) to a DateTime
+    #[inline]
+    pub fn to_date_time<C: Calendar, S: Scale>(&self, spice: SPICE) -> DateTime<C, S> {
+        self.to_date_time_with_zone(spice, 0)
     }
 
     /// Equivalent to [DateTime::to_et()]
@@ -94,7 +110,7 @@ impl SPICE {
     /// `out_length` must be large enough to store the output string or otherwise this function
     /// will return Err.
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html>
     pub fn time_out<'p, P: Into<StringParam<'p>>>(
         &self,
         et: ET,
@@ -116,7 +132,7 @@ impl SPICE {
 
     /// Convert a time string to Ephemeris Time (TDB)
     ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html
+    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html>
     #[inline]
     pub fn string_to_et<'p, P: Into<StringParam<'p>>>(&self, string: P) -> Result<ET, Error> {
         let mut output = 0f64;
@@ -128,7 +144,7 @@ impl SPICE {
     }
 }
 
-/// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/time.html
+/// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/time.html>
 pub trait Scale {
     fn name() -> &'static str;
 }
@@ -160,130 +176,7 @@ impl Scale for UTC {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct JulianDate<S: Scale> {
-    pub value: SpiceDouble,
-    scale: PhantomData<S>,
-}
-
-impl<S: Scale> JulianDate<S> {
-    pub fn new(jd: SpiceDouble) -> Self {
-        Self {
-            value: jd,
-            scale: Default::default(),
-        }
-    }
-
-    /// Converts a Julian Date to Ephemeris Time (TDB)
-    ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html
-    #[inline]
-    pub fn to_et(&self, spice: SPICE) -> ET {
-        spice
-            .string_to_et(format!("JD {} {}", S::name(), self.value))
-            .unwrap()
-    }
-
-    /// Equivalent to [ET::to_jd()]
-    #[inline]
-    pub fn from_et(et: ET, spice: SPICE) -> Self {
-        et.to_julian_date(spice)
-    }
-
-    #[inline]
-    pub fn to_date_time<C: Calendar>(&self, spice: SPICE) -> DateTime<C, S> {
-        self.to_et(spice).to_date_time(spice)
-    }
-
-    #[inline]
-    pub fn from_date_time<C: Calendar>(date_time: DateTime<C, S>, spice: SPICE) -> Self {
-        date_time.to_et(spice).to_julian_date(spice)
-    }
-}
-
-impl<S: Scale> Display for JulianDate<S> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "JD {} {}", S::name(), self.value)
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct DateTime<T: Calendar, S: Scale> {
-    pub year: i16,
-    pub month: u8,
-    pub day: u8,
-    pub hour: u8,
-    pub minute: u8,
-    pub second: f32,
-    calendar: PhantomData<T>,
-    scale: PhantomData<S>,
-}
-
-impl<C: Calendar, S: Scale> DateTime<C, S> {
-    pub fn new(year: i16, month: u8, day: u8, hour: u8, minute: u8, second: f32) -> Self {
-        Self {
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            calendar: Default::default(),
-            scale: Default::default(),
-        }
-    }
-
-    /// Convert a DateTime to Ephemeris Time (TDB)
-    ///
-    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html
-    pub fn to_et(&self, spice: SPICE) -> ET {
-        let year = if self.year > 0 {
-            self.year.to_string()
-        } else {
-            format!("{} BC", self.year.abs() + 1)
-        };
-        let date = format!(
-            "{year}-{}-{} {}:{}:{} {} {}",
-            self.month,
-            self.day,
-            self.hour,
-            self.minute,
-            self.second,
-            S::name(),
-            C::short_name()
-        );
-        spice.string_to_et(date).unwrap()
-    }
-
-    #[inline]
-    pub fn to_julian_date(&self, spice: SPICE) -> JulianDate<S> {
-        self.to_et(spice).to_julian_date(spice)
-    }
-
-    #[inline]
-    pub fn from_julian_date(jd: JulianDate<S>, spice: SPICE) -> Self {
-        jd.to_et(spice).to_date_time(spice)
-    }
-}
-
-impl<C: Calendar, S: Scale> Display for DateTime<C, S> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}-{}-{} {}:{}:{} {} {}",
-            self.year,
-            self.month,
-            self.day,
-            self.hour,
-            self.minute,
-            self.second,
-            S::name(),
-            C::short_name()
-        )
-    }
-}
-
-/// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
+/// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html>
 pub trait Calendar {
     fn short_name() -> &'static str;
 }
@@ -312,6 +205,22 @@ impl Calendar for Gregorian {
 impl Calendar for Julian {
     fn short_name() -> &'static str {
         "JCAL"
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl From<DateTime<Gregorian, UTC>> for chrono::DateTime<chrono::FixedOffset> {
+    fn from(t: DateTime<Gregorian, UTC>) -> Self {
+        use chrono::TimeZone;
+        let ns = t.second.fract() * 1_000_000_f32;
+        chrono::FixedOffset::east(0)
+            .ymd(t.year as i32, t.month as u32, t.day as u32)
+            .and_hms_nano(
+                t.hour as u32,
+                t.minute as u32,
+                t.second.floor() as u32,
+                ns as u32,
+            )
     }
 }
 
