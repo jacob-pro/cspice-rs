@@ -1,5 +1,5 @@
-use crate::string::SpiceString;
-use crate::SPICE;
+use crate::string::{SpiceStr, SpiceString};
+use crate::{Error, SPICE};
 use cspice_sys::{str2et_c, timout_c, SpiceDouble, SpiceInt};
 use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
@@ -22,8 +22,8 @@ impl ET {
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
     #[inline]
     pub fn to_julian_date<S: Scale>(&self, spice: SPICE) -> JulianDate<S> {
-        let mut pictur = SpiceString::from(format!("JULIAND.############# ::{}", S::name()));
-        let mut buffer = vec![0; 40];
+        let pictur = SpiceString::from(format!("JULIAND.############# ::{}", S::name()));
+        let mut buffer = [0; 40];
         unsafe {
             timout_c(
                 self.0,
@@ -33,7 +33,7 @@ impl ET {
             );
         }
         spice.get_last_error().unwrap();
-        JulianDate::new(SpiceString::from_buffer(buffer).as_str().parse().unwrap())
+        JulianDate::new(SpiceStr::from_buffer(&buffer).as_str().parse().unwrap())
     }
 
     /// Equivalent to [JulianDate::to_et()]
@@ -46,12 +46,12 @@ impl ET {
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
     pub fn to_date_time<C: Calendar, S: Scale>(&self, spice: SPICE) -> DateTime<C, S> {
-        let mut pictur = SpiceString::from(format!(
+        let pictur = SpiceString::from(format!(
             "ERA:YYYY:MM:DD:HR:MN:SC.##### ::{} ::{}",
             S::name(),
             C::short_name()
         ));
-        let mut buffer = vec![0; 100];
+        let mut buffer = [0; 100];
         unsafe {
             timout_c(
                 self.0,
@@ -61,8 +61,9 @@ impl ET {
             );
         };
         spice.get_last_error().unwrap();
-        let output = SpiceString::from_buffer(buffer).to_string();
-        let split: Vec<&str> = output.split(':').collect();
+        let output = SpiceStr::from_buffer(&buffer);
+        let cow = output.as_str();
+        let split: Vec<&str> = cow.split(':').collect();
         let year: i16 = if split[0] == "B.C." {
             1 - split[1].trim().parse::<i16>().unwrap()
         } else {
@@ -84,6 +85,30 @@ impl ET {
     #[inline]
     pub fn from_date_time<C: Calendar, S: Scale>(date_time: DateTime<C, S>, spice: SPICE) -> Self {
         date_time.to_et(spice)
+    }
+}
+
+impl SPICE {
+    /// Convert Ephemeris Time to a different time format
+    ///
+    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
+    pub fn time_out(
+        &self,
+        et: ET,
+        pictur: &SpiceString,
+        out_length: usize,
+    ) -> Result<String, Error> {
+        let mut buffer = vec![0; out_length];
+        unsafe {
+            timout_c(
+                et.0,
+                pictur.as_mut_ptr(),
+                buffer.len() as SpiceInt,
+                buffer.as_mut_ptr(),
+            );
+        };
+        self.get_last_error()?;
+        Ok(SpiceString::from_buffer(buffer).to_string())
     }
 }
 
@@ -138,7 +163,7 @@ impl<S: Scale> JulianDate<S> {
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html
     #[inline]
     pub fn to_et(&self, spice: SPICE) -> ET {
-        let mut value = SpiceString::from(format!("JD {} {}", S::name(), self.value));
+        let value = SpiceString::from(format!("JD {} {}", S::name(), self.value));
         let mut output = 0f64;
         unsafe {
             str2et_c(value.as_mut_ptr(), &mut output);
@@ -205,7 +230,7 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
         } else {
             format!("{} BC", self.year.abs() + 1)
         };
-        let mut date = SpiceString::from(format!(
+        let date = SpiceString::from(format!(
             "{year}-{}-{} {}:{}:{} {} {}",
             self.month,
             self.day,

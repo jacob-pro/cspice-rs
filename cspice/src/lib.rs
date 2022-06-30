@@ -12,8 +12,6 @@ use std::thread;
 use std::thread::ThreadId;
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 /// SPICE is not a thread safe library.
 ///
 /// https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe.
@@ -50,7 +48,7 @@ impl SPICE {
     /// be handled using Rust's Result type.
     ///
     /// SPICE will be locked to the first thread that calls this function.
-    pub fn try_get_instance() -> std::result::Result<SPICE, SPICEThreadError> {
+    pub fn try_get_instance() -> Result<SPICE, SPICEThreadError> {
         static SPICE_THREAD_ID: Lazy<Mutex<Option<ThreadId>>> = Lazy::new(|| Mutex::new(None));
 
         let mut thread_id = SPICE_THREAD_ID.lock().unwrap();
