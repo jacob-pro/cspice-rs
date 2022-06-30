@@ -89,7 +89,10 @@ impl ET {
 }
 
 impl SPICE {
-    /// Convert Ephemeris Time to a different time format
+    /// Convert Ephemeris Time to a different time format.
+    ///
+    /// `out_length` must be large enough to store the output string or otherwise this function
+    /// will return Err.
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
     pub fn time_out<'p, P: Into<StringParam<'p>>>(
@@ -109,6 +112,19 @@ impl SPICE {
         };
         self.get_last_error()?;
         Ok(SpiceString::from_buffer(buffer).to_string())
+    }
+
+    /// Convert a time string to Ephemeris Time (TDB)
+    ///
+    /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html
+    #[inline]
+    pub fn string_to_et<'p, P: Into<StringParam<'p>>>(&self, string: P) -> Result<ET, Error> {
+        let mut output = 0f64;
+        unsafe {
+            str2et_c(string.into().as_mut_ptr(), &mut output);
+        }
+        self.get_last_error()?;
+        Ok(ET(output))
     }
 }
 
@@ -163,13 +179,9 @@ impl<S: Scale> JulianDate<S> {
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html
     #[inline]
     pub fn to_et(&self, spice: SPICE) -> ET {
-        let value = SpiceString::from(format!("JD {} {}", S::name(), self.value));
-        let mut output = 0f64;
-        unsafe {
-            str2et_c(value.as_mut_ptr(), &mut output);
-        }
-        spice.get_last_error().unwrap();
-        ET(output)
+        spice
+            .string_to_et(format!("JD {} {}", S::name(), self.value))
+            .unwrap()
     }
 
     /// Equivalent to [ET::to_jd()]
@@ -230,7 +242,7 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
         } else {
             format!("{} BC", self.year.abs() + 1)
         };
-        let date = SpiceString::from(format!(
+        let date = format!(
             "{year}-{}-{} {}:{}:{} {} {}",
             self.month,
             self.day,
@@ -239,13 +251,8 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
             self.second,
             S::name(),
             C::short_name()
-        ));
-        let mut et: SpiceDouble = 0.0;
-        unsafe {
-            str2et_c(date.as_mut_ptr(), &mut et);
-        }
-        spice.get_last_error().unwrap();
-        ET(et)
+        );
+        spice.string_to_et(date).unwrap()
     }
 
     #[inline]
