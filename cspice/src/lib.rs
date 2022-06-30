@@ -83,7 +83,6 @@ impl SPICE {
 
 #[cfg(test)]
 mod tests {
-    use crate::string::SpiceString;
     use crate::SPICE;
     use std::path::PathBuf;
     use std::sync::Once;
@@ -95,9 +94,7 @@ mod tests {
         SPICE_INIT.call_once(|| {
             let data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test_data");
             spice
-                .furnish(&mut SpiceString::from(
-                    data_dir.join("naif0012.tls").to_string_lossy(),
-                ))
+                .furnish(data_dir.join("naif0012.tls").to_string_lossy())
                 .unwrap();
         });
         return spice;

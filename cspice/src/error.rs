@@ -39,6 +39,7 @@ impl SPICE {
     /// Tests, retrieves, and resets the last error if it is present. Otherwise returns Ok.
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Testing%20the%20Error%20Status
+    #[inline]
     pub fn get_last_error(&self) -> Result<(), Error> {
         unsafe {
             if failed_c() == 0 {

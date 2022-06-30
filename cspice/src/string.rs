@@ -19,21 +19,16 @@ impl Display for SpiceString {
     }
 }
 
-impl<T: Into<String>> From<T> for SpiceString {
+/// A SpiceString can be created from a Rust string.
+impl<T: AsRef<str>> From<T> for SpiceString {
     #[inline]
     fn from(s: T) -> Self {
-        Self(CString::new(s.into()).unwrap())
-    }
-}
-
-impl From<SpiceStr<'_>> for SpiceString {
-    fn from(s: SpiceStr<'_>) -> Self {
-        SpiceString(CString::from(s.0))
+        Self(CString::new(s.as_ref()).unwrap())
     }
 }
 
 impl SpiceString {
-    /// Get the pointer to the SpiceString's data
+    /// Get the pointer to the SpiceString's data. Intended for use passing string input to SPICE.
     ///
     /// # Safety
     ///
@@ -74,19 +69,12 @@ impl SpiceString {
     }
 }
 
-impl Deref for SpiceString {
-    type Target = CString;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub struct SpiceStr<'a>(&'a CStr);
+pub struct SpiceStr<'a>(pub &'a CStr);
 
 impl SpiceStr<'_> {
-    /// Get a SpiceStr (CStr) from a buffer
+    /// Get a SpiceStr (CStr) from a buffer. Intended for reading a buffer containing a string
+    /// output from SPICE.
     ///
     /// # Panics
     ///
@@ -111,14 +99,6 @@ impl SpiceStr<'_> {
     }
 }
 
-impl Deref for SpiceStr<'_> {
-    type Target = CStr;
-
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
 impl Debug for SpiceStr<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "SpiceStr({})", self.as_str())
@@ -128,6 +108,42 @@ impl Debug for SpiceStr<'_> {
 impl Display for SpiceStr<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&*self.as_str())
+    }
+}
+
+/// A performance optimisation that allows you to pass an existing &SpiceString as an argument.
+/// Alternatively you can pass a Rust string but this will require conversion on each call.
+pub enum StringParam<'a> {
+    Ref(&'a SpiceString),
+    Owned(SpiceString),
+}
+
+impl<S: AsRef<str>> From<S> for StringParam<'_> {
+    fn from(s: S) -> Self {
+        StringParam::Owned(SpiceString::from(s))
+    }
+}
+
+impl<'a> From<&'a SpiceString> for StringParam<'a> {
+    fn from(s: &'a SpiceString) -> Self {
+        StringParam::Ref(s)
+    }
+}
+
+impl From<SpiceString> for StringParam<'_> {
+    fn from(s: SpiceString) -> Self {
+        StringParam::Owned(s)
+    }
+}
+
+impl Deref for StringParam<'_> {
+    type Target = SpiceString;
+
+    fn deref(&self) -> &Self::Target {
+        match &self {
+            StringParam::Ref(r) => r,
+            StringParam::Owned(o) => o,
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::string::{SpiceStr, SpiceString};
+use crate::string::{SpiceStr, SpiceString, StringParam};
 use crate::{Error, SPICE};
 use cspice_sys::{str2et_c, timout_c, SpiceDouble, SpiceInt};
 use std::fmt::{Debug, Display, Formatter};
@@ -92,17 +92,17 @@ impl SPICE {
     /// Convert Ephemeris Time to a different time format
     ///
     /// See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html
-    pub fn time_out(
+    pub fn time_out<'p, P: Into<StringParam<'p>>>(
         &self,
         et: ET,
-        pictur: &SpiceString,
+        pictur: P,
         out_length: usize,
     ) -> Result<String, Error> {
         let mut buffer = vec![0; out_length];
         unsafe {
             timout_c(
                 et.0,
-                pictur.as_mut_ptr(),
+                pictur.into().as_mut_ptr(),
                 buffer.len() as SpiceInt,
                 buffer.as_mut_ptr(),
             );
