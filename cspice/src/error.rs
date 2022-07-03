@@ -1,5 +1,5 @@
 use crate::string::{SpiceStr, SpiceString};
-use crate::SPICE;
+use crate::Spice;
 use cspice_sys::{
     erract_c, errdev_c, failed_c, getmsg_c, qcktrc_c, reset_c, SpiceInt, SPICE_ERROR_LMSGLN,
     SPICE_ERROR_SMSGLN, SPICE_ERROR_TRCLEN, SPICE_ERROR_XMSGLN,
@@ -18,6 +18,7 @@ pub struct Error {
     pub traceback: String,
 }
 
+/// See [Choosing the Error Response Action](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Choosing%20the%20Error%20Response%20Action).
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ErrorAction {
@@ -28,6 +29,7 @@ pub enum ErrorAction {
     Default,
 }
 
+/// See [Choosing Where the Error Messages Are Sent](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Choosing%20Where%20the%20Error%20Messages%20Are%20Sent).
 #[derive(Debug, Clone, PartialEq)]
 pub enum ErrorDevice {
     Screen,
@@ -35,10 +37,11 @@ pub enum ErrorDevice {
     Filename(String),
 }
 
-impl SPICE {
+/// Functions relating to error handling.
+impl Spice {
     /// Tests, retrieves, and resets the last error if it is present. Otherwise returns Ok.
     ///
-    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Testing%20the%20Error%20Status>
+    /// For context see [CSPICE Error Handling](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Testing%20the%20Error%20Status).
     #[inline]
     pub fn get_last_error(&self) -> Result<(), Error> {
         unsafe {
@@ -83,9 +86,9 @@ impl SPICE {
         }
     }
 
-    /// Set the action when an error occurs in a SPICE function
+    /// Set the action when an error occurs in a SPICE function.
     ///
-    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html>
+    /// See [erract_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html).
     pub fn set_error_action(&self, action: ErrorAction) -> Result<(), Error> {
         let set = SpiceString::from("SET");
         let action = SpiceString::from(serde_plain::to_string(&action).unwrap());
@@ -95,9 +98,9 @@ impl SPICE {
         self.get_last_error()
     }
 
-    /// Get the action when an error occurs in a SPICE function
+    /// Get the action when an error occurs in a SPICE function.
     ///
-    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html>
+    /// See [erract_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html).
     pub fn get_error_action(&self) -> Result<ErrorAction, Error> {
         let get = SpiceString::from("GET");
         let mut buffer = [0; 20];
@@ -113,9 +116,9 @@ impl SPICE {
         Ok(serde_plain::from_str(&*action.as_str()).unwrap())
     }
 
-    /// Set Error Output Device
+    /// Set Error Output Device.
     ///
-    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html>
+    /// See [errdev_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html).
     pub fn set_error_output_device(&self, device: ErrorDevice) -> Result<(), Error> {
         let set = SpiceString::from("SET");
         let device = match device {
@@ -129,9 +132,9 @@ impl SPICE {
         self.get_last_error()
     }
 
-    /// Get Error Output Device
+    /// Get Error Output Device.
     ///
-    /// See <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html>
+    /// See [errdev_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html).
     pub fn get_error_output_device(&self) -> Result<ErrorDevice, Error> {
         let get = SpiceString::from("GET");
         let mut buffer = [0; FILEN as usize];
@@ -163,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_get_set_error_action() {
-        let spice = SPICE::get_instance();
+        let spice = Spice::get_instance();
         spice.set_error_action(ErrorAction::Default).unwrap();
         assert_eq!(spice.get_error_action().unwrap(), ErrorAction::Default);
         spice.set_error_action(ErrorAction::Ignore).unwrap();
@@ -177,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_get_set_error_output_device() {
-        let spice = SPICE::get_instance();
+        let spice = Spice::get_instance();
         spice.set_error_output_device(ErrorDevice::Null).unwrap();
         assert_eq!(spice.get_error_output_device().unwrap(), ErrorDevice::Null);
         spice.set_error_output_device(ErrorDevice::Screen).unwrap();

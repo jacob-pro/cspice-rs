@@ -1,6 +1,8 @@
+use crate::time::calendar::Calendar;
 use crate::time::julian_date::JulianDate;
-use crate::time::{Calendar, Gregorian, Scale, ET, UTC};
-use crate::SPICE;
+use crate::time::scale::Scale;
+use crate::time::Et;
+use crate::Spice;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
@@ -47,7 +49,7 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
 
     /// Convert a DateTime to Ephemeris Time (TDB)
     #[inline]
-    pub fn to_et(&self, spice: SPICE) -> ET {
+    pub fn to_et(&self, spice: Spice) -> Et {
         let year = if self.year > 0 {
             self.year.to_string()
         } else {
@@ -64,16 +66,16 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
             C::short_name()
         );
         let et = spice.string_to_et(date).unwrap();
-        ET(et.0 - self.zone as f64)
+        Et(et.0 - self.zone as f64)
     }
 
     #[inline]
-    pub fn to_julian_date(&self, spice: SPICE) -> JulianDate<S> {
+    pub fn to_julian_date(&self, spice: Spice) -> JulianDate<S> {
         self.to_et(spice).to_julian_date(spice)
     }
 
     #[inline]
-    pub fn from_julian_date(jd: JulianDate<S>, spice: SPICE) -> Self {
+    pub fn from_julian_date(jd: JulianDate<S>, spice: Spice) -> Self {
         jd.to_et(spice).to_date_time(spice)
     }
 }
@@ -100,7 +102,9 @@ impl<C: Calendar, S: Scale> Display for DateTime<C, S> {
 }
 
 #[cfg(feature = "chrono")]
-impl From<chrono::DateTime<chrono::FixedOffset>> for DateTime<Gregorian, UTC> {
+impl From<chrono::DateTime<chrono::FixedOffset>>
+    for DateTime<super::calendar::Gregorian, super::scale::Utc>
+{
     fn from(c: chrono::DateTime<chrono::FixedOffset>) -> Self {
         use chrono::{Datelike, Timelike};
         let seconds = c.second() as f32 + c.nanosecond() as f32 / 1_000_000.0;
@@ -113,5 +117,23 @@ impl From<chrono::DateTime<chrono::FixedOffset>> for DateTime<Gregorian, UTC> {
             seconds,
             c.timezone().local_minus_utc(),
         )
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl From<DateTime<super::calendar::Gregorian, super::scale::Utc>>
+    for chrono::DateTime<chrono::FixedOffset>
+{
+    fn from(t: DateTime<super::calendar::Gregorian, super::scale::Utc>) -> Self {
+        use chrono::TimeZone;
+        let ns = t.second.fract() * 1_000_000_f32;
+        chrono::FixedOffset::east(0)
+            .ymd(t.year as i32, t.month as u32, t.day as u32)
+            .and_hms_nano(
+                t.hour as u32,
+                t.minute as u32,
+                t.second.floor() as u32,
+                ns as u32,
+            )
     }
 }

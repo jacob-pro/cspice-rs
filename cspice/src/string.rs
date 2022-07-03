@@ -39,9 +39,9 @@ impl SpiceString {
         self.0.as_ptr() as *mut SpiceChar
     }
 
-    /// Convert a buffer of SpiceChar into a SpiceString
+    /// Convert a buffer of SpiceChar into a SpiceString.
     ///
-    /// This will panic if the buffer is not nul terminated
+    /// This will panic if the buffer is not nul terminated.
     #[inline]
     pub fn from_buffer(mut s: Vec<SpiceChar>) -> Self {
         // Truncate from nul terminator
@@ -78,7 +78,7 @@ impl SpiceStr<'_> {
     ///
     /// # Panics
     ///
-    /// Panics if the buffer is not nul terminated
+    /// Panics if the buffer is not nul terminated.
     #[inline]
     pub fn from_buffer(buffer: &[SpiceChar]) -> Self {
         // https://doc.rust-lang.org/src/std/ffi/c_str.rs.html#1295-1306
@@ -111,8 +111,9 @@ impl Display for SpiceStr<'_> {
     }
 }
 
-/// A performance optimisation that allows you to pass an existing &SpiceString as an argument.
-/// Alternatively you can pass a Rust string but this will require conversion on each call.
+/// Allows you to pass a Rust string that will automatically be converted into a nul terminated C
+/// string. Alternatively you can pass an existing &SpiceString as an argument so that the string
+/// does not need to be converted on each call.
 pub enum StringParam<'a> {
     Ref(&'a SpiceString),
     Owned(SpiceString),
