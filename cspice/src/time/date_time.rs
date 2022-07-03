@@ -1,8 +1,10 @@
+use crate::constants::{CALENDAR, GET, SET};
 use crate::time::calendar::Calendar;
 use crate::time::julian_date::JulianDate;
 use crate::time::scale::Scale;
 use crate::time::Et;
 use crate::Spice;
+use cspice_sys::{timdef_c, SpiceInt};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
@@ -50,22 +52,43 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
     /// Convert a DateTime to Ephemeris Time (TDB)
     #[inline]
     pub fn to_et(&self, spice: Spice) -> Et {
+        // Get default calendar setting
+        let mut original_cal = [0; 12];
+        unsafe {
+            timdef_c(
+                GET.as_mut_ptr(),
+                CALENDAR.as_mut_ptr(),
+                original_cal.len() as SpiceInt,
+                original_cal.as_mut_ptr(),
+            );
+        }
+        spice.get_last_error().unwrap();
         let year = if self.year > 0 {
             self.year.to_string()
         } else {
             format!("{} BC", self.year.abs() + 1)
         };
         let date = format!(
-            "{year}-{}-{} {}:{}:{} {} {}",
+            "{year}-{}-{} {}:{}:{} {}",
             self.month,
             self.day,
             self.hour,
             self.minute,
             self.second,
             S::name(),
-            C::short_name()
         );
+        spice.set_default_calendar::<C>();
         let et = spice.string_to_et(date).unwrap();
+        // Restore default calendar
+        unsafe {
+            timdef_c(
+                SET.as_mut_ptr(),
+                CALENDAR.as_mut_ptr(),
+                0,
+                original_cal.as_mut_ptr(),
+            );
+        }
+        spice.get_last_error().unwrap();
         Et(et.0 - self.zone as f64)
     }
 

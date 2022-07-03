@@ -1,6 +1,7 @@
 /// See [Calendars in timout_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html).
 pub trait Calendar {
     fn short_name() -> &'static str;
+    fn name() -> &'static str;
 }
 
 /// Uses the Julian calendar for dates prior to Oct 5, 1582, and the Gregorian calendar for dates
@@ -21,16 +22,28 @@ impl Calendar for Mixed {
     fn short_name() -> &'static str {
         "MCAL"
     }
+
+    fn name() -> &'static str {
+        "MIXED"
+    }
 }
 
 impl Calendar for Gregorian {
     fn short_name() -> &'static str {
         "GCAL"
     }
+
+    fn name() -> &'static str {
+        "GREGORIAN"
+    }
 }
 
 impl Calendar for Julian {
     fn short_name() -> &'static str {
         "JCAL"
+    }
+
+    fn name() -> &'static str {
+        "JULIAN"
     }
 }

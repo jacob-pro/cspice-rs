@@ -1,9 +1,12 @@
+mod constants;
+
 pub mod data;
 pub mod error;
 pub mod string;
 pub mod time;
 
 use crate::error::Error;
+use crate::string::SpiceString;
 use once_cell::sync::Lazy;
 use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;

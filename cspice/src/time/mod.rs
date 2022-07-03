@@ -7,10 +7,11 @@ pub mod scale;
 pub use date_time::DateTime;
 pub use julian_date::JulianDate;
 
+use crate::constants::{CALENDAR, SET};
 use crate::string::{SpiceStr, SpiceString, StringParam};
 use crate::{Error, Spice};
 use calendar::Calendar;
-use cspice_sys::{str2et_c, timout_c, SpiceDouble, SpiceInt};
+use cspice_sys::{str2et_c, timdef_c, timout_c, SpiceDouble, SpiceInt};
 use scale::Scale;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -137,6 +138,23 @@ impl Spice {
         self.get_last_error()?;
         Ok(Et(output))
     }
+
+    /// Sets the default calendar to use with input strings.
+    ///
+    /// See [timdef_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timdef_c.html).
+    #[inline]
+    pub fn set_default_calendar<C: Calendar>(&self) {
+        let name = SpiceString::from(C::name());
+        unsafe {
+            timdef_c(
+                SET.as_mut_ptr(),
+                CALENDAR.as_mut_ptr(),
+                0,
+                name.as_mut_ptr(),
+            );
+        }
+        self.get_last_error().unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -144,7 +162,7 @@ mod tests {
     use super::*;
     use crate::tests::get_test_spice;
     use crate::time::calendar::{Gregorian, Mixed};
-    use crate::time::scale::Tdb;
+    use crate::time::scale::{Tdb, Tdt, Utc};
 
     #[test]
     fn test_et_to_jd() {
@@ -156,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn test_jd_to_utc() {
+    fn test_jd_to_date_time() {
         let spice = get_test_spice();
         let et = JulianDate::<Tdb>::new(1502273.5).to_et(spice);
         let ut = et.to_date_time::<Mixed, Tdb>(spice);
@@ -164,16 +182,16 @@ mod tests {
     }
 
     #[test]
-    fn test_utc_to_jd() {
+    fn test_date_time_to_jd() {
         let spice = get_test_spice();
-        let et = JulianDate::<Tdb>::new(1502273.5).to_et(spice);
+        let jd = JulianDate::<Tdb>::new(1502273.5);
         assert_eq!(
-            et.to_date_time::<Mixed, Tdb>(spice),
-            DateTime::new(-599, 1, 1, 0, 0, 0.0)
+            DateTime::<Mixed, Tdb>::new(-599, 1, 1, 0, 0, 0.0).to_julian_date(spice),
+            jd
         );
         assert_eq!(
-            et.to_date_time::<Gregorian, Tdb>(spice),
-            DateTime::new(-600, 12, 26, 0, 0, 0.0)
+            DateTime::<Gregorian, Tdb>::new(-600, 12, 26, 0, 0, 0.0).to_julian_date(spice),
+            jd
         );
     }
 }

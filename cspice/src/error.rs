@@ -1,3 +1,4 @@
+use crate::constants::{GET, SET};
 use crate::string::{SpiceStr, SpiceString};
 use crate::Spice;
 use cspice_sys::{
@@ -90,10 +91,9 @@ impl Spice {
     ///
     /// See [erract_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html).
     pub fn set_error_action(&self, action: ErrorAction) -> Result<(), Error> {
-        let set = SpiceString::from("SET");
         let action = SpiceString::from(serde_plain::to_string(&action).unwrap());
         unsafe {
-            erract_c(set.as_mut_ptr(), 0, action.as_mut_ptr());
+            erract_c(SET.as_mut_ptr(), 0, action.as_mut_ptr());
         }
         self.get_last_error()
     }
@@ -102,11 +102,10 @@ impl Spice {
     ///
     /// See [erract_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html).
     pub fn get_error_action(&self) -> Result<ErrorAction, Error> {
-        let get = SpiceString::from("GET");
         let mut buffer = [0; 20];
         unsafe {
             erract_c(
-                get.as_mut_ptr(),
+                GET.as_mut_ptr(),
                 buffer.len() as SpiceInt,
                 buffer.as_mut_ptr(),
             );
@@ -120,14 +119,13 @@ impl Spice {
     ///
     /// See [errdev_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html).
     pub fn set_error_output_device(&self, device: ErrorDevice) -> Result<(), Error> {
-        let set = SpiceString::from("SET");
         let device = match device {
             ErrorDevice::Screen => SpiceString::from("SCREEN"),
             ErrorDevice::Null => SpiceString::from("NULL"),
             ErrorDevice::Filename(filename) => SpiceString::from(filename),
         };
         unsafe {
-            errdev_c(set.as_mut_ptr(), 0, device.as_mut_ptr());
+            errdev_c(SET.as_mut_ptr(), 0, device.as_mut_ptr());
         }
         self.get_last_error()
     }
@@ -136,11 +134,10 @@ impl Spice {
     ///
     /// See [errdev_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html).
     pub fn get_error_output_device(&self) -> Result<ErrorDevice, Error> {
-        let get = SpiceString::from("GET");
         let mut buffer = [0; FILEN as usize];
         unsafe {
             errdev_c(
-                get.as_mut_ptr(),
+                GET.as_mut_ptr(),
                 buffer.len() as SpiceInt,
                 buffer.as_mut_ptr(),
             );
