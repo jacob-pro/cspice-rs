@@ -2,18 +2,18 @@ mod date_time;
 mod julian_date;
 
 pub mod calendar;
-pub mod scale;
+pub mod system;
 
 pub use date_time::DateTime;
 pub use julian_date::JulianDate;
 
 use crate::constants::{CALENDAR, SET};
-use crate::string::{SpiceStr, SpiceString, StringParam};
+use crate::string::{SpiceString, StringParam};
 use crate::{Error, Spice};
 use calendar::Calendar;
 use cspice_sys::{str2et_c, timdef_c, timout_c, SpiceDouble, SpiceInt};
-use scale::Scale;
 use std::fmt::{Debug, Display, Formatter};
+use system::System;
 
 /// Ephemeris Time (time in seconds past the ephemeris epoch J2000) (TDB).
 ///
@@ -30,71 +30,25 @@ impl Display for Et {
 impl Et {
     /// Equivalent to [JulianDate::from_et()].
     #[inline]
-    pub fn to_julian_date<S: Scale>(self, spice: Spice) -> JulianDate<S> {
+    pub fn to_julian_date<S: System>(self, spice: Spice) -> JulianDate<S> {
         JulianDate::from_et(self, spice)
     }
 
     /// Equivalent to [JulianDate::to_et()].
     #[inline]
-    pub fn from_julian_date<S: Scale>(jd: JulianDate<S>, spice: Spice) -> Self {
+    pub fn from_julian_date<S: System>(jd: JulianDate<S>, spice: Spice) -> Self {
         jd.to_et(spice)
     }
 
-    /// Convert an Ephemeris Time (TDB) to a DateTime in a specified time zone.
-    ///
-    /// # Arguments
-    ///
-    /// * `zone` - Zone offset in seconds
+    /// Equivalent to [DateTime::from_et()].
     #[inline]
-    pub fn to_date_time_with_zone<C: Calendar, S: Scale>(
-        &self,
-        spice: Spice,
-        zone: i32,
-    ) -> DateTime<C, S> {
-        let pictur = SpiceString::from(format!(
-            "ERA:YYYY:MM:DD:HR:MN:SC.##### ::{} ::{}",
-            S::name(),
-            C::short_name()
-        ));
-        let mut buffer = [0; 100];
-        let zone_adj = self.0 + zone as f64;
-        unsafe {
-            timout_c(
-                zone_adj,
-                pictur.as_mut_ptr(),
-                buffer.len() as SpiceInt,
-                buffer.as_mut_ptr(),
-            );
-        };
-        spice.get_last_error().unwrap();
-        let output = SpiceStr::from_buffer(&buffer);
-        let cow = output.as_str();
-        let split: Vec<&str> = cow.split(':').collect();
-        let year: i16 = if split[0] == "B.C." {
-            1 - split[1].trim().parse::<i16>().unwrap()
-        } else {
-            split[1].trim().parse().unwrap()
-        };
-        DateTime::with_zone(
-            year,
-            split[2].parse().unwrap(),
-            split[3].parse().unwrap(),
-            split[4].parse().unwrap(),
-            split[5].parse().unwrap(),
-            split[6].parse().unwrap(),
-            zone,
-        )
-    }
-
-    /// Convert an Ephemeris Time (TDB) to a DateTime.
-    #[inline]
-    pub fn to_date_time<C: Calendar, S: Scale>(&self, spice: Spice) -> DateTime<C, S> {
-        self.to_date_time_with_zone(spice, 0)
+    pub fn to_date_time<C: Calendar, S: System>(self, system: S, spice: Spice) -> DateTime<C, S> {
+        DateTime::from_et(self, system, spice)
     }
 
     /// Equivalent to [DateTime::to_et()].
     #[inline]
-    pub fn from_date_time<C: Calendar, S: Scale>(date_time: DateTime<C, S>, spice: Spice) -> Self {
+    pub fn from_date_time<C: Calendar, S: System>(date_time: DateTime<C, S>, spice: Spice) -> Self {
         date_time.to_et(spice)
     }
 }
@@ -162,7 +116,7 @@ mod tests {
     use super::*;
     use crate::tests::get_test_spice;
     use crate::time::calendar::{Gregorian, Mixed};
-    use crate::time::scale::{Tdb, Tdt, Utc};
+    use crate::time::system::{Tdb, Utc};
 
     #[test]
     fn test_et_to_jd() {
@@ -177,20 +131,25 @@ mod tests {
     fn test_jd_to_date_time() {
         let spice = get_test_spice();
         let et = JulianDate::<Tdb>::new(1502273.5).to_et(spice);
-        let ut = et.to_date_time::<Mixed, Tdb>(spice);
-        assert_eq!(ut, DateTime::new(-599, 1, 1, 0, 0, 0.0));
+        let ut = et.to_date_time::<Mixed, Tdb>(Tdb, spice);
+        assert_eq!(ut, DateTime::new(-599, 1, 1, 0, 0, 0.0, Tdb));
     }
 
     #[test]
     fn test_date_time_to_jd() {
         let spice = get_test_spice();
-        let jd = JulianDate::<Tdb>::new(1502273.5);
+        let jd = JulianDate::<Utc>::new(1502273.5);
         assert_eq!(
-            DateTime::<Mixed, Tdb>::new(-599, 1, 1, 0, 0, 0.0).to_julian_date(spice),
+            DateTime::<Mixed, _>::new(-599, 1, 1, 0, 0, 0.0, Utc::default()).to_julian_date(spice),
             jd
         );
         assert_eq!(
-            DateTime::<Gregorian, Tdb>::new(-600, 12, 26, 0, 0, 0.0).to_julian_date(spice),
+            DateTime::<Mixed, _>::new(-599, 1, 1, 3, 0, 0.0, Utc::new(3, 0)).to_julian_date(spice),
+            jd
+        );
+        assert_eq!(
+            DateTime::<Gregorian, _>::new(-600, 12, 26, 0, 0, 0.0, Utc::default())
+                .to_julian_date(spice),
             jd
         );
     }

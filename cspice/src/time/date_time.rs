@@ -1,40 +1,35 @@
 use crate::constants::{CALENDAR, GET, SET};
+use crate::string::SpiceStr;
 use crate::time::calendar::Calendar;
 use crate::time::julian_date::JulianDate;
-use crate::time::scale::Scale;
+use crate::time::system::System;
 use crate::time::Et;
-use crate::Spice;
-use cspice_sys::{timdef_c, SpiceInt};
+use crate::{Spice, SpiceString};
+use cspice_sys::{timdef_c, timout_c, SpiceInt};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct DateTime<T: Calendar, S: Scale> {
+pub struct DateTime<T: Calendar, S: System> {
     pub year: i16,
     pub month: u8,
     pub day: u8,
     pub hour: u8,
     pub minute: u8,
     pub second: f32,
-    /// Number of seconds offset
-    pub zone: i32,
+    pub system: S,
     calendar: PhantomData<T>,
-    scale: PhantomData<S>,
 }
 
-impl<C: Calendar, S: Scale> DateTime<C, S> {
-    pub fn new(year: i16, month: u8, day: u8, hour: u8, minute: u8, second: f32) -> Self {
-        Self::with_zone(year, month, day, hour, minute, second, 0)
-    }
-
-    pub fn with_zone(
+impl<C: Calendar, S: System> DateTime<C, S> {
+    pub fn new(
         year: i16,
         month: u8,
         day: u8,
         hour: u8,
         minute: u8,
         second: f32,
-        zone: i32,
+        system: S,
     ) -> Self {
         Self {
             year,
@@ -43,9 +38,8 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
             hour,
             minute,
             second,
-            zone,
+            system,
             calendar: Default::default(),
-            scale: Default::default(),
         }
     }
 
@@ -75,7 +69,7 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
             self.hour,
             self.minute,
             self.second,
-            S::name(),
+            self.system.meta_marker(),
         );
         spice.set_default_calendar::<C>();
         let et = spice.string_to_et(date).unwrap();
@@ -89,36 +83,69 @@ impl<C: Calendar, S: Scale> DateTime<C, S> {
             );
         }
         spice.get_last_error().unwrap();
-        Et(et.0 - self.zone as f64)
+        et
+    }
+
+    /// Convert an Ephemeris Time (TDB) to a DateTime.
+    #[inline]
+    pub fn from_et(et: Et, system: S, spice: Spice) -> Self {
+        let pictur = SpiceString::from(format!(
+            "ERA:YYYY:MM:DD:HR:MN:SC.##### ::{} ::{}",
+            system.meta_marker(),
+            C::short_name()
+        ));
+        let mut buffer = [0; 100];
+        unsafe {
+            timout_c(
+                et.0,
+                pictur.as_mut_ptr(),
+                buffer.len() as SpiceInt,
+                buffer.as_mut_ptr(),
+            );
+        };
+        spice.get_last_error().unwrap();
+        let output = SpiceStr::from_buffer(&buffer);
+        let cow = output.as_str();
+        let split: Vec<&str> = cow.split(':').collect();
+        let year: i16 = if split[0] == "B.C." {
+            1 - split[1].trim().parse::<i16>().unwrap()
+        } else {
+            split[1].trim().parse().unwrap()
+        };
+        DateTime::new(
+            year,
+            split[2].parse().unwrap(),
+            split[3].parse().unwrap(),
+            split[4].parse().unwrap(),
+            split[5].parse().unwrap(),
+            split[6].parse().unwrap(),
+            system,
+        )
     }
 
     #[inline]
     pub fn to_julian_date(&self, spice: Spice) -> JulianDate<S> {
-        self.to_et(spice).to_julian_date(spice)
+        JulianDate::from_et(self.to_et(spice), spice)
     }
 
     #[inline]
     pub fn from_julian_date(jd: JulianDate<S>, spice: Spice) -> Self {
-        jd.to_et(spice).to_date_time(spice)
+        Self::from_et(jd.to_et(spice), S::default(), spice)
     }
 }
 
-impl<C: Calendar, S: Scale> Display for DateTime<C, S> {
+impl<C: Calendar, S: System> Display for DateTime<C, S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let zone_hrs = self.zone as f64 / 3600.0;
-        let whole_hrs = zone_hrs.floor() as i32;
-        let mins = (zone_hrs.fract() * 60.0) as i32;
         write!(
             f,
-            "{}-{}-{} {}:{}:{} {:+}:{mins} {} {}",
+            "{}-{}-{} {}:{}:{} {} {}",
             self.year,
             self.month,
             self.day,
             self.hour,
             self.minute,
             self.second,
-            whole_hrs,
-            S::name(),
+            self.system.meta_marker(),
             C::short_name()
         )
     }
@@ -126,31 +153,31 @@ impl<C: Calendar, S: Scale> Display for DateTime<C, S> {
 
 #[cfg(feature = "chrono")]
 impl From<chrono::DateTime<chrono::FixedOffset>>
-    for DateTime<super::calendar::Gregorian, super::scale::Utc>
+    for DateTime<super::calendar::Gregorian, super::system::Utc>
 {
     fn from(c: chrono::DateTime<chrono::FixedOffset>) -> Self {
         use chrono::{Datelike, Timelike};
         let seconds = c.second() as f32 + c.nanosecond() as f32 / 1_000_000.0;
-        DateTime::with_zone(
+        DateTime::new(
             c.year() as i16,
             c.month() as u8,
             c.day() as u8,
             c.hour() as u8,
             c.minute() as u8,
             seconds,
-            c.timezone().local_minus_utc(),
+            super::system::Utc::from_zone_seconds(c.timezone().local_minus_utc()),
         )
     }
 }
 
 #[cfg(feature = "chrono")]
-impl From<DateTime<super::calendar::Gregorian, super::scale::Utc>>
+impl From<DateTime<super::calendar::Gregorian, super::system::Utc>>
     for chrono::DateTime<chrono::FixedOffset>
 {
-    fn from(t: DateTime<super::calendar::Gregorian, super::scale::Utc>) -> Self {
+    fn from(t: DateTime<super::calendar::Gregorian, super::system::Utc>) -> Self {
         use chrono::TimeZone;
         let ns = t.second.fract() * 1_000_000_f32;
-        chrono::FixedOffset::east(0)
+        chrono::FixedOffset::east(t.system.to_zone_seconds())
             .ymd(t.year as i32, t.month as u32, t.day as u32)
             .and_hms_nano(
                 t.hour as u32,
