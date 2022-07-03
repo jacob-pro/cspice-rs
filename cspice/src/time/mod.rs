@@ -27,7 +27,55 @@ impl Display for Et {
     }
 }
 
+impl From<SpiceDouble> for Et {
+    fn from(et: SpiceDouble) -> Self {
+        Self(et)
+    }
+}
+
 impl Et {
+    /// Convert Ephemeris Time to a different time format.
+    ///
+    /// `out_length` must be large enough to store the output string or otherwise this function
+    /// will return Err.
+    ///
+    /// See [timout_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html).
+    #[inline]
+    pub fn time_out<'p, P: Into<StringParam<'p>>>(
+        &self,
+        pictur: P,
+        out_length: usize,
+        spice: Spice,
+    ) -> Result<String, Error> {
+        let mut buffer = vec![0; out_length];
+        unsafe {
+            timout_c(
+                self.0,
+                pictur.into().as_mut_ptr(),
+                buffer.len() as SpiceInt,
+                buffer.as_mut_ptr(),
+            );
+        };
+        spice.get_last_error()?;
+        Ok(SpiceString::from_buffer(buffer).to_string())
+    }
+
+    /// Convert a time string to Ephemeris Time (TDB)
+    ///
+    /// See [str2et_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html)
+    #[inline]
+    pub fn from_string<'p, P: Into<StringParam<'p>>>(
+        string: P,
+        spice: Spice,
+    ) -> Result<Self, Error> {
+        let mut output = 0f64;
+        unsafe {
+            str2et_c(string.into().as_mut_ptr(), &mut output);
+        }
+        spice.get_last_error()?;
+        Ok(Self(output))
+    }
+
     /// Equivalent to [JulianDate::from_et()].
     #[inline]
     pub fn to_julian_date<S: System>(self, spice: Spice) -> JulianDate<S> {
@@ -53,47 +101,8 @@ impl Et {
     }
 }
 
-/// Functions for converting time formats and scales.
+/// Functions relating to time conversion
 impl Spice {
-    /// Convert Ephemeris Time to a different time format.
-    ///
-    /// `out_length` must be large enough to store the output string or otherwise this function
-    /// will return Err.
-    ///
-    /// See [timout_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html).
-    #[inline]
-    pub fn time_out<'p, P: Into<StringParam<'p>>>(
-        &self,
-        et: Et,
-        pictur: P,
-        out_length: usize,
-    ) -> Result<String, Error> {
-        let mut buffer = vec![0; out_length];
-        unsafe {
-            timout_c(
-                et.0,
-                pictur.into().as_mut_ptr(),
-                buffer.len() as SpiceInt,
-                buffer.as_mut_ptr(),
-            );
-        };
-        self.get_last_error()?;
-        Ok(SpiceString::from_buffer(buffer).to_string())
-    }
-
-    /// Convert a time string to Ephemeris Time (TDB)
-    ///
-    /// See [str2et_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html)
-    #[inline]
-    pub fn string_to_et<'p, P: Into<StringParam<'p>>>(&self, string: P) -> Result<Et, Error> {
-        let mut output = 0f64;
-        unsafe {
-            str2et_c(string.into().as_mut_ptr(), &mut output);
-        }
-        self.get_last_error()?;
-        Ok(Et(output))
-    }
-
     /// Sets the default calendar to use with input strings.
     ///
     /// See [timdef_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timdef_c.html).

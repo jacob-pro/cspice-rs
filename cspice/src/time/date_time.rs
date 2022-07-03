@@ -73,7 +73,7 @@ impl<C: Calendar, S: System> DateTime<C, S> {
             self.system.meta_marker(),
         );
         spice.set_default_calendar::<C>();
-        let et = spice.string_to_et(date).unwrap();
+        let et = Et::from_string(date, spice).unwrap();
         // Restore default calendar
         unsafe {
             timdef_c(

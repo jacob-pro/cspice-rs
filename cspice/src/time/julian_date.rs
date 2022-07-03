@@ -27,9 +27,7 @@ impl<S: System> JulianDate<S> {
     /// Convert the Julian Date to Ephemeris Time (TDB).
     #[inline]
     pub fn to_et(&self, spice: Spice) -> Et {
-        spice
-            .string_to_et(format!("JD {} {}", S::system_name(), self.value))
-            .unwrap()
+        Et::from_string(format!("JD {} {}", S::system_name(), self.value), spice).unwrap()
     }
 
     /// Convert Ephemeris Time (TDB) to a Julian Date.
