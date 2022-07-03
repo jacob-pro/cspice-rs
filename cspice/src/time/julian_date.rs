@@ -15,6 +15,12 @@ pub struct JulianDate<S: System> {
     scale: PhantomData<S>,
 }
 
+impl<S: System> From<SpiceDouble> for JulianDate<S> {
+    fn from(s: SpiceDouble) -> Self {
+        JulianDate::new(s)
+    }
+}
+
 impl<S: System> JulianDate<S> {
     #[inline]
     pub fn new(jd: SpiceDouble) -> Self {

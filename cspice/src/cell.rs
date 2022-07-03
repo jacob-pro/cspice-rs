@@ -1,9 +1,12 @@
+use crate::common::{ComparisonOperator, Side};
 use crate::string::StringParam;
 use crate::{Error, Spice};
 use cspice_sys::{
-    SpiceBoolean, SpiceChar, SpiceDouble, SpiceInt, _SpiceDataType_SPICE_CHR,
-    _SpiceDataType_SPICE_DP, _SpiceDataType_SPICE_INT, appndc_c, appndd_c, appndi_c, card_c,
-    copy_c, scard_c, SPICEFALSE, SPICETRUE, SPICE_CELL_CTRLSZ,
+    _SpiceDataType_SPICE_CHR, _SpiceDataType_SPICE_DP, _SpiceDataType_SPICE_INT, appndc_c,
+    appndd_c, appndi_c, card_c, copy_c, scard_c, wncard_c, wncomd_c, wncond_c, wndifd_c, wnelmd_c,
+    wnexpd_c, wnextd_c, wnfetd_c, wnfild_c, wnfltd_c, wnincd_c, wninsd_c, wnintd_c, wnreld_c,
+    wnsumd_c, wnunid_c, wnvald_c, SpiceBoolean, SpiceChar, SpiceDouble, SpiceInt, SPICEFALSE,
+    SPICETRUE, SPICE_CELL_CTRLSZ,
 };
 use std::ffi::c_void;
 
@@ -20,16 +23,17 @@ pub struct Cell<T: CellType> {
 }
 
 impl<T: CellType> Cell<T> {
-    pub fn get_cell(&mut self) -> *mut cspice_sys::SpiceCell {
+    /// Access the internal CSPICE Cell structure.
+    pub fn as_mut_cell(&mut self) -> *mut cspice_sys::SpiceCell {
         &mut self.cell
     }
 
     /// Set the cardinality of a cell.
     ///
     /// See [scard_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/scard_c.html).
-    pub fn set_cardinality(&mut self, cardinality: SpiceInt, spice: Spice) -> Result<(), Error> {
+    pub fn set_cardinality(&mut self, cardinality: usize, spice: Spice) -> Result<(), Error> {
         unsafe {
-            scard_c(cardinality, self.get_cell());
+            scard_c(cardinality as SpiceInt, self.as_mut_cell());
         }
         spice.get_last_error()
     }
@@ -37,21 +41,19 @@ impl<T: CellType> Cell<T> {
     /// Return the size (maximum cardinality) of a SPICE cell.
     ///
     /// See [size_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/size_c.html)
-    pub fn get_size(&mut self, spice: Spice) -> Result<(), Error> {
-        unsafe {
-            card_c(self.get_cell());
-        }
-        spice.get_last_error()
+    pub fn get_size(&mut self, spice: Spice) -> Result<usize, Error> {
+        let out = unsafe { card_c(self.as_mut_cell()) };
+        spice.get_last_error()?;
+        Ok(out as usize)
     }
 
     /// Return the cardinality (current number of elements) in a cell.
     ///
     /// See [card_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/card_c.html).
-    pub fn get_cardinality(&mut self, spice: Spice) -> Result<(), Error> {
-        unsafe {
-            card_c(self.get_cell());
-        }
-        spice.get_last_error()
+    pub fn get_cardinality(&mut self, spice: Spice) -> Result<usize, Error> {
+        let out = unsafe { card_c(self.as_mut_cell()) };
+        spice.get_last_error()?;
+        Ok(out as usize)
     }
 
     /// Copy the contents of a SpiceCell of any data type to another cell of the same type.
@@ -59,7 +61,7 @@ impl<T: CellType> Cell<T> {
     /// See [copy_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/copy_c.html).
     pub fn copy(&mut self, dest: &mut Cell<T>, spice: Spice) -> Result<(), Error> {
         unsafe {
-            copy_c(self.get_cell(), dest.get_cell());
+            copy_c(self.as_mut_cell(), dest.as_mut_cell());
         }
         spice.get_last_error()
     }
@@ -90,7 +92,7 @@ impl Cell<SpiceDouble> {
     /// See [appndd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/appndd_c.html)
     pub fn append(&mut self, item: SpiceDouble, spice: Spice) -> Result<(), Error> {
         unsafe {
-            appndd_c(item, self.get_cell());
+            appndd_c(item, self.as_mut_cell());
         }
         spice.get_last_error()
     }
@@ -121,7 +123,7 @@ impl Cell<SpiceInt> {
     /// See [appndi_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/appndi_c.html)
     pub fn append(&mut self, item: SpiceInt, spice: Spice) -> Result<(), Error> {
         unsafe {
-            appndi_c(item, self.get_cell());
+            appndi_c(item, self.as_mut_cell());
         }
         spice.get_last_error()
     }
@@ -158,8 +160,276 @@ impl Cell<SpiceChar> {
         spice: Spice,
     ) -> Result<(), Error> {
         unsafe {
-            appndc_c(item.into().as_mut_ptr(), self.get_cell());
+            appndc_c(item.into().as_mut_ptr(), self.as_mut_cell());
         }
+        spice.get_last_error()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowSummary {
+    pub total_measure_of_intervals: SpiceDouble,
+    pub average_measure: SpiceDouble,
+    pub standard_deviation: SpiceDouble,
+    pub shortest_interval_index: usize,
+    pub longest_interval_index: usize,
+}
+
+/// Window specific functions
+impl Cell<SpiceDouble> {
+    /// Return the cardinality (number of intervals) of a double precision window.
+    ///
+    /// See [wncard_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wncard_c.html).
+    pub fn window_cardinality(&mut self, spice: Spice) -> Result<SpiceInt, Error> {
+        let out = unsafe { wncard_c(self.as_mut_cell()) };
+        spice.get_last_error()?;
+        Ok(out)
+    }
+
+    /// Determine the complement of a double precision window with respect to a specified interval.
+    ///
+    /// See [wncomd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wncomd_c.html).
+    pub fn window_compliment(
+        &mut self,
+        left: SpiceDouble,
+        right: SpiceDouble,
+        output: &mut Cell<SpiceDouble>,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wncomd_c(left, right, self.as_mut_cell(), output.as_mut_cell());
+        }
+        spice.get_last_error()
+    }
+
+    /// Contract each of the intervals of a double precision window.
+    ///
+    /// See [wncond_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wncond_c.html).
+    pub fn window_contract(
+        &mut self,
+        left: SpiceDouble,
+        right: SpiceDouble,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wncond_c(left, right, self.as_mut_cell());
+        }
+        spice.get_last_error()
+    }
+
+    /// Place the difference of two double precision windows into a third window.
+    ///
+    /// See [wndifd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wndifd_c.html).
+    pub fn window_difference(
+        &mut self,
+        other: &mut Cell<SpiceDouble>,
+        output: &mut Cell<SpiceDouble>,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wndifd_c(
+                self.as_mut_cell(),
+                other.as_mut_cell(),
+                output.as_mut_cell(),
+            );
+        }
+        spice.get_last_error()
+    }
+
+    /// Determine whether a point is an element of a double precision window
+    ///
+    /// See [wnelmd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnelmd_c.html).
+    pub fn window_contains_element(
+        &mut self,
+        point: SpiceDouble,
+        spice: Spice,
+    ) -> Result<bool, Error> {
+        let out = unsafe { wnelmd_c(point, self.as_mut_cell()) };
+        spice.get_last_error()?;
+        Ok(out == SPICETRUE as SpiceBoolean)
+    }
+
+    /// Expand each of the intervals of a double precision window
+    ///
+    /// See [wnexpd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnexpd_c.html).
+    pub fn window_expand(
+        &mut self,
+        left: SpiceDouble,
+        right: SpiceDouble,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wnexpd_c(left, right, self.as_mut_cell());
+        }
+        spice.get_last_error()
+    }
+
+    /// Extract the left or right endpoints from a double precision window.
+    ///
+    /// See [wnextd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnextd_c.html).
+    pub fn window_extract(&mut self, side: Side, spice: Spice) -> Result<(), Error> {
+        unsafe {
+            wnextd_c(side.as_spice_char(), self.as_mut_cell());
+        }
+        spice.get_last_error()
+    }
+
+    /// Fetch a particular interval from a double precision window.
+    ///
+    /// See [wnfetd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnfetd_c.html).
+    pub fn window_interval(
+        &mut self,
+        n: usize,
+        spice: Spice,
+    ) -> Result<(SpiceDouble, SpiceDouble), Error> {
+        let (mut left, mut right) = (0.0, 0.0);
+        unsafe {
+            wnfetd_c(self.as_mut_cell(), n as SpiceInt, &mut left, &mut right);
+        }
+        spice.get_last_error()?;
+        Ok((left, right))
+    }
+
+    /// Fill small gaps between adjacent intervals of a double precision window.
+    ///
+    /// See [wnfild_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnfild_c.html).
+    pub fn window_fill(&mut self, small_gap: SpiceDouble, spice: Spice) -> Result<(), Error> {
+        unsafe {
+            wnfild_c(small_gap, self.as_mut_cell());
+        }
+        spice.get_last_error()
+    }
+
+    /// Filter (remove) small intervals from a double precision window.
+    ///
+    /// See [wnfltd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnfltd_c.html).
+    pub fn window_filter(
+        &mut self,
+        small_interval: SpiceDouble,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wnfltd_c(small_interval, self.as_mut_cell());
+        }
+        spice.get_last_error()
+    }
+
+    /// Determine whether an interval is included in a double precision window.
+    ///
+    /// See [wnincd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnincd_c.html).
+    pub fn window_contains_interval(
+        &mut self,
+        left: SpiceDouble,
+        right: SpiceDouble,
+        spice: Spice,
+    ) -> Result<bool, Error> {
+        let out = unsafe { wnincd_c(left, right, self.as_mut_cell()) };
+        spice.get_last_error()?;
+        Ok(out == SPICETRUE as SpiceBoolean)
+    }
+
+    /// Insert an interval into a double precision window.
+    ///
+    /// See [wninsd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wninsd_c.html).
+    pub fn window_insert_interval(
+        &mut self,
+        left: SpiceDouble,
+        right: SpiceDouble,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe { wninsd_c(left, right, self.as_mut_cell()) };
+        spice.get_last_error()
+    }
+
+    /// Place the intersection of two double precision windows into a third window.
+    ///
+    /// See [wnintd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnintd_c.html).
+    pub fn window_intersect(
+        &mut self,
+        other: &mut Cell<SpiceDouble>,
+        output: &mut Cell<SpiceDouble>,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wnintd_c(
+                self.as_mut_cell(),
+                other.as_mut_cell(),
+                output.as_mut_cell(),
+            )
+        };
+        spice.get_last_error()
+    }
+
+    /// Compare two double precision windows.
+    ///
+    /// See [wnreld_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnreld_c.html).
+    pub fn window_compare(
+        &mut self,
+        comparison_op: ComparisonOperator,
+        other: &mut Cell<SpiceDouble>,
+        spice: Spice,
+    ) -> Result<bool, Error> {
+        let out = unsafe {
+            wnreld_c(
+                self.as_mut_cell(),
+                comparison_op.as_spice_string().as_mut_ptr(),
+                other.as_mut_cell(),
+            )
+        };
+        spice.get_last_error()?;
+        Ok(out == SPICETRUE as SpiceBoolean)
+    }
+
+    /// Summarize the contents of a double precision window.
+    ///
+    /// See [wnsumd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnsumd_c.html).
+    pub fn window_summarize(&mut self, spice: Spice) -> Result<WindowSummary, Error> {
+        let (mut meas, mut avg, mut stddev) = (0.0, 0.0, 0.0);
+        let (mut idxsml, mut idxlon) = (0, 0);
+        unsafe {
+            wnsumd_c(
+                self.as_mut_cell(),
+                &mut meas,
+                &mut avg,
+                &mut stddev,
+                &mut idxsml,
+                &mut idxlon,
+            )
+        };
+        spice.get_last_error()?;
+        Ok(WindowSummary {
+            total_measure_of_intervals: meas,
+            average_measure: avg,
+            standard_deviation: stddev,
+            shortest_interval_index: idxsml as usize,
+            longest_interval_index: idxlon as usize,
+        })
+    }
+
+    /// Place the union of two double precision windows into a third window.
+    ///
+    /// See [wnunid_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnunid_c.html).
+    pub fn window_union(
+        &mut self,
+        other: &mut Cell<SpiceDouble>,
+        output: &mut Cell<SpiceDouble>,
+        spice: Spice,
+    ) -> Result<(), Error> {
+        unsafe {
+            wnunid_c(
+                self.as_mut_cell(),
+                other.as_mut_cell(),
+                output.as_mut_cell(),
+            );
+        }
+        spice.get_last_error()
+    }
+
+    /// Form a valid double precision window from the contents of a window array.
+    ///
+    /// See [wnvald_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnvald_c.html).
+    pub fn window_validate(&mut self, size: usize, n: usize, spice: Spice) -> Result<(), Error> {
+        unsafe { wnvald_c(size as SpiceInt, n as SpiceInt, self.as_mut_cell()) };
         spice.get_last_error()
     }
 }
