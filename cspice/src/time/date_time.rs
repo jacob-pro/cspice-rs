@@ -22,6 +22,7 @@ pub struct DateTime<T: Calendar, S: System> {
 }
 
 impl<C: Calendar, S: System> DateTime<C, S> {
+    #[inline]
     pub fn new(
         year: i16,
         month: u8,
