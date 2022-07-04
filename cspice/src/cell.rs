@@ -178,6 +178,8 @@ pub struct WindowSummary {
     pub longest_interval_index: usize,
 }
 
+pub type Window = Cell<SpiceDouble>;
+
 /// Window specific functions
 impl Cell<SpiceDouble> {
     /// Return the cardinality (number of intervals) of a double precision window.
@@ -196,7 +198,7 @@ impl Cell<SpiceDouble> {
         &mut self,
         left: SpiceDouble,
         right: SpiceDouble,
-        output: &mut Cell<SpiceDouble>,
+        output: &mut Window,
     ) -> Result<(), Error> {
         spice_unsafe!({
             wncomd_c(left, right, self.as_mut_cell(), output.as_mut_cell());
@@ -219,8 +221,8 @@ impl Cell<SpiceDouble> {
     /// See [wndifd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wndifd_c.html).
     pub fn window_difference(
         &mut self,
-        other: &mut Cell<SpiceDouble>,
-        output: &mut Cell<SpiceDouble>,
+        other: &mut Window,
+        output: &mut Window,
     ) -> Result<(), Error> {
         spice_unsafe!({
             wndifd_c(
@@ -323,8 +325,8 @@ impl Cell<SpiceDouble> {
     /// See [wnintd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnintd_c.html).
     pub fn window_intersect(
         &mut self,
-        other: &mut Cell<SpiceDouble>,
-        output: &mut Cell<SpiceDouble>,
+        other: &mut Window,
+        output: &mut Window,
     ) -> Result<(), Error> {
         spice_unsafe!({
             wnintd_c(
@@ -342,12 +344,12 @@ impl Cell<SpiceDouble> {
     pub fn window_compare(
         &mut self,
         comparison_op: ComparisonOperator,
-        other: &mut Cell<SpiceDouble>,
+        other: &mut Window,
     ) -> Result<bool, Error> {
         let out = spice_unsafe!({
             wnreld_c(
                 self.as_mut_cell(),
-                comparison_op.as_spice_str().as_mut_ptr(),
+                comparison_op.as_spice_char(),
                 other.as_mut_cell(),
             )
         });
@@ -384,11 +386,7 @@ impl Cell<SpiceDouble> {
     /// Place the union of two double precision windows into a third window.
     ///
     /// See [wnunid_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnunid_c.html).
-    pub fn window_union(
-        &mut self,
-        other: &mut Cell<SpiceDouble>,
-        output: &mut Cell<SpiceDouble>,
-    ) -> Result<(), Error> {
+    pub fn window_union(&mut self, other: &mut Window, output: &mut Window) -> Result<(), Error> {
         spice_unsafe!({
             wnunid_c(
                 self.as_mut_cell(),

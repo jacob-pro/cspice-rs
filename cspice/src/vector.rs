@@ -1,4 +1,6 @@
 //! Functions for working with 3D Vectors.
+//!
+//! See [Performing simple operations on 3D vectors](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/info/mostused.html#U)
 use crate::spice_unsafe;
 use cspice_sys::{vsep_c, SpiceDouble};
 use derive_more::{Deref, DerefMut, From, Into};
