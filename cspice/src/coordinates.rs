@@ -1,11 +1,12 @@
 use crate::convert::SpiceFrom;
+use crate::vector::Vector3D;
 use crate::Spice;
 use cspice_sys::{reclat_c, recrad_c, SpiceDouble};
 use derive_more::{Deref, DerefMut, From, Into};
 
 /// Rectangular coordinates
 #[derive(Copy, Clone, Debug, Default, PartialEq, From, Into, Deref, DerefMut)]
-pub struct Rectangular([SpiceDouble; 3]);
+pub struct Rectangular(Vector3D);
 
 impl SpiceFrom<Rectangular> for RaDec {
     /// See [recrad_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recrad_c.html).
