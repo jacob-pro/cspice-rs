@@ -1,10 +1,9 @@
-use crate::convert::SpiceFrom;
 use crate::string::{SpiceStr, SpiceString};
 use crate::time::calendar::Calendar;
 use crate::time::date_time::DateTime;
 use crate::time::system::System;
 use crate::time::Et;
-use crate::Spice;
+use crate::{spice_unsafe, Spice};
 use cspice_sys::{timout_c, SpiceDouble};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
@@ -32,37 +31,37 @@ impl<S: System> JulianDate<S> {
     }
 }
 
-impl<S: System> SpiceFrom<JulianDate<S>> for Et {
+impl<S: System> From<JulianDate<S>> for Et {
     /// Convert a Julian Date to Ephemeris Time (TDB).
     #[inline]
-    fn spice_from(jd: JulianDate<S>, spice: Spice) -> Self {
-        Et::from_string(format!("JD {} {}", S::system_name(), jd.value), spice).unwrap()
+    fn from(jd: JulianDate<S>) -> Self {
+        Et::from_string(format!("JD {} {}", S::system_name(), jd.value)).unwrap()
     }
 }
 
-impl<S: System> SpiceFrom<Et> for JulianDate<S> {
+impl<S: System> From<Et> for JulianDate<S> {
     /// Convert Ephemeris Time (TDB) to a Julian Date.
     #[inline]
-    fn spice_from(et: Et, spice: Spice) -> Self {
+    fn from(et: Et) -> Self {
         let pictur = SpiceString::from(format!("JULIAND.############# ::{}", S::system_name()));
         let mut buffer = [0; 40];
-        unsafe {
+        spice_unsafe!({
             timout_c(
                 et.0,
                 pictur.as_mut_ptr(),
                 buffer.len() as i32,
                 buffer.as_mut_ptr(),
             );
-        }
-        spice.get_last_error().unwrap();
+        });
+        Spice::get_last_error().unwrap();
         Self::new(SpiceStr::from_buffer(&buffer).as_str().parse().unwrap())
     }
 }
 
-impl<C: Calendar, S: System> SpiceFrom<DateTime<C, S>> for JulianDate<S> {
+impl<C: Calendar, S: System> From<DateTime<C, S>> for JulianDate<S> {
     #[inline]
-    fn spice_from(dt: DateTime<C, S>, spice: Spice) -> Self {
-        JulianDate::spice_from(Et::spice_from(dt, spice), spice)
+    fn from(dt: DateTime<C, S>) -> Self {
+        JulianDate::from(Et::from(dt))
     }
 }
 

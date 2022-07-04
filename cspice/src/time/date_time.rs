@@ -1,11 +1,10 @@
 use crate::common::{CALENDAR, GET, SET};
-use crate::convert::SpiceFrom;
 use crate::string::SpiceStr;
 use crate::time::calendar::Calendar;
 use crate::time::julian_date::JulianDate;
 use crate::time::system::System;
 use crate::time::Et;
-use crate::{Spice, SpiceString};
+use crate::{spice_unsafe, Spice, SpiceString};
 use cspice_sys::{timdef_c, timout_c, SpiceInt};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
@@ -47,22 +46,22 @@ impl<C: Calendar, S: System> DateTime<C, S> {
 
     /// Convert an Ephemeris Time (TDB) to a DateTime.
     #[inline]
-    pub fn from_et(et: Et, system: S, spice: Spice) -> Self {
+    pub fn from_et(et: Et, system: S) -> Self {
         let pictur = SpiceString::from(format!(
             "ERA:YYYY:MM:DD:HR:MN:SC.##### ::{} ::{}",
             system.meta_marker(),
             C::short_name()
         ));
         let mut buffer = [0; 100];
-        unsafe {
+        spice_unsafe!({
             timout_c(
                 et.0,
                 pictur.as_mut_ptr(),
                 buffer.len() as SpiceInt,
                 buffer.as_mut_ptr(),
             );
-        };
-        spice.get_last_error().unwrap();
+        });
+        Spice::get_last_error().unwrap();
         let output = SpiceStr::from_buffer(&buffer);
         let cow = output.as_str();
         let split: Vec<&str> = cow.split(':').collect();
@@ -83,28 +82,28 @@ impl<C: Calendar, S: System> DateTime<C, S> {
     }
 }
 
-impl<C: Calendar, S: System> SpiceFrom<Et> for DateTime<C, S> {
+impl<C: Calendar, S: System> From<Et> for DateTime<C, S> {
     #[inline]
-    fn spice_from(et: Et, spice: Spice) -> Self {
-        DateTime::from_et(et, S::default(), spice)
+    fn from(et: Et) -> Self {
+        DateTime::from_et(et, S::default())
     }
 }
 
-impl<C: Calendar, S: System> SpiceFrom<DateTime<C, S>> for Et {
+impl<C: Calendar, S: System> From<DateTime<C, S>> for Et {
     /// Convert a DateTime to Ephemeris Time (TDB)
     #[inline]
-    fn spice_from(dt: DateTime<C, S>, spice: Spice) -> Self {
+    fn from(dt: DateTime<C, S>) -> Self {
         // Get default calendar setting
         let mut original_cal = [0; 12];
-        unsafe {
+        spice_unsafe!({
             timdef_c(
                 GET.as_mut_ptr(),
                 CALENDAR.as_mut_ptr(),
                 original_cal.len() as SpiceInt,
                 original_cal.as_mut_ptr(),
             );
-        }
-        spice.get_last_error().unwrap();
+        });
+        Spice::get_last_error().unwrap();
         let year = if dt.year > 0 {
             dt.year.to_string()
         } else {
@@ -119,26 +118,26 @@ impl<C: Calendar, S: System> SpiceFrom<DateTime<C, S>> for Et {
             dt.second,
             dt.system.meta_marker(),
         );
-        spice.set_default_calendar::<C>();
-        let et = Et::from_string(date, spice).unwrap();
+        Spice::set_default_calendar::<C>();
+        let et = Et::from_string(date).unwrap();
         // Restore default calendar
-        unsafe {
+        spice_unsafe!({
             timdef_c(
                 SET.as_mut_ptr(),
                 CALENDAR.as_mut_ptr(),
                 0,
                 original_cal.as_mut_ptr(),
             );
-        }
-        spice.get_last_error().unwrap();
+        });
+        Spice::get_last_error().unwrap();
         et
     }
 }
 
-impl<C: Calendar, S: System> SpiceFrom<JulianDate<S>> for DateTime<C, S> {
+impl<C: Calendar, S: System> From<JulianDate<S>> for DateTime<C, S> {
     #[inline]
-    fn spice_from(jd: JulianDate<S>, spice: Spice) -> Self {
-        DateTime::spice_from(Et::spice_from(jd, spice), spice)
+    fn from(jd: JulianDate<S>) -> Self {
+        DateTime::from(Et::from(jd))
     }
 }
 

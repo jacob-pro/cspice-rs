@@ -1,7 +1,7 @@
 use crate::string::{static_spice_str, StaticSpiceStr, StringParam};
 use crate::time::Et;
 use crate::vector::Vector3D;
-use crate::{Error, Spice};
+use crate::{spice_unsafe, Error, Spice};
 use cspice_sys::{spkpos_c, SpiceDouble};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -55,7 +55,7 @@ impl Spice {
     {
         let mut position = Vector3D::default();
         let mut light_time = 0.0;
-        unsafe {
+        spice_unsafe!({
             spkpos_c(
                 target.into().as_mut_ptr(),
                 et.0,
@@ -65,8 +65,8 @@ impl Spice {
                 position.as_mut_ptr(),
                 &mut light_time,
             )
-        };
-        self.get_last_error()?;
+        });
+        Spice::get_last_error()?;
         Ok((position, light_time))
     }
 }

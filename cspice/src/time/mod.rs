@@ -9,7 +9,7 @@ pub use julian_date::JulianDate;
 
 use crate::common::{CALENDAR, SET};
 use crate::string::{SpiceString, StringParam};
-use crate::{Error, Spice};
+use crate::{spice_unsafe, Error, Spice};
 use calendar::Calendar;
 use cspice_sys::{str2et_c, timdef_c, timout_c, SpiceDouble, SpiceInt};
 use derive_more::{From, Into};
@@ -39,18 +39,17 @@ impl Et {
         &self,
         pictur: P,
         out_length: usize,
-        spice: Spice,
     ) -> Result<String, Error> {
         let mut buffer = vec![0; out_length];
-        unsafe {
+        spice_unsafe!({
             timout_c(
                 self.0,
                 pictur.into().as_mut_ptr(),
                 buffer.len() as SpiceInt,
                 buffer.as_mut_ptr(),
             );
-        };
-        spice.get_last_error()?;
+        });
+        Spice::get_last_error()?;
         Ok(SpiceString::from_buffer(buffer).to_string())
     }
 
@@ -58,15 +57,12 @@ impl Et {
     ///
     /// See [str2et_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html)
     #[inline]
-    pub fn from_string<'p, P: Into<StringParam<'p>>>(
-        string: P,
-        spice: Spice,
-    ) -> Result<Self, Error> {
+    pub fn from_string<'p, P: Into<StringParam<'p>>>(string: P) -> Result<Self, Error> {
         let mut output = 0f64;
-        unsafe {
+        spice_unsafe!({
             str2et_c(string.into().as_mut_ptr(), &mut output);
-        }
-        spice.get_last_error()?;
+        });
+        Spice::get_last_error()?;
         Ok(Self(output))
     }
 }
@@ -77,68 +73,82 @@ impl Spice {
     ///
     /// See [timdef_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timdef_c.html).
     #[inline]
-    pub fn set_default_calendar<C: Calendar>(&self) {
+    pub fn set_default_calendar<C: Calendar>() {
         let name = SpiceString::from(C::name());
-        unsafe {
+        spice_unsafe!({
             timdef_c(
                 SET.as_mut_ptr(),
                 CALENDAR.as_mut_ptr(),
                 0,
                 name.as_mut_ptr(),
             );
-        }
-        self.get_last_error().unwrap();
+        });
+        Self::get_last_error().unwrap();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::convert::SpiceFrom;
-    use crate::tests::get_test_spice;
+    use crate::tests::load_test_data;
     use crate::time::calendar::{Gregorian, Mixed};
     use crate::time::system::{Tdb, Utc};
 
     #[test]
     fn test_et_to_jd() {
-        let spice = get_test_spice();
+        load_test_data();
         assert_eq!(
-            JulianDate::spice_from(Et(0f64), spice),
+            JulianDate::from(Et(0f64)),
             JulianDate::<Tdb>::new(2451545.0)
         );
     }
 
     #[test]
     fn test_jd_to_date_time() {
-        let spice = get_test_spice();
-        let et = Et::spice_from(JulianDate::<Tdb>::new(1502273.5), spice);
-        let dt = DateTime::<Mixed, _>::from_et(et, Tdb, spice);
+        load_test_data();
+        let et = Et::from(JulianDate::<Tdb>::new(1502273.5));
+        let dt = DateTime::<Mixed, _>::from_et(et, Tdb);
         assert_eq!(dt, DateTime::new(-599, 1, 1, 0, 0, 0.0, Tdb));
     }
 
     #[test]
     fn test_date_time_to_jd() {
-        let spice = get_test_spice();
+        load_test_data();
         let jd = JulianDate::<Utc>::new(1502273.5);
         assert_eq!(
-            JulianDate::spice_from(
-                DateTime::<Mixed, _>::new(-599, 1, 1, 0, 0, 0.0, Utc::default()),
-                spice
-            ),
+            JulianDate::from(DateTime::<Mixed, _>::new(
+                -599,
+                1,
+                1,
+                0,
+                0,
+                0.0,
+                Utc::default()
+            ),),
             jd
         );
         assert_eq!(
-            JulianDate::spice_from(
-                DateTime::<Mixed, _>::new(-599, 1, 1, 3, 0, 0.0, Utc::new(3, 0)),
-                spice
-            ),
+            JulianDate::from(DateTime::<Mixed, _>::new(
+                -599,
+                1,
+                1,
+                3,
+                0,
+                0.0,
+                Utc::new(3, 0)
+            ),),
             jd
         );
         assert_eq!(
-            JulianDate::spice_from(
-                DateTime::<Gregorian, _>::new(-600, 12, 26, 0, 0, 0.0, Utc::default()),
-                spice
-            ),
+            JulianDate::from(DateTime::<Gregorian, _>::new(
+                -600,
+                12,
+                26,
+                0,
+                0,
+                0.0,
+                Utc::default()
+            ),),
             jd
         );
     }
