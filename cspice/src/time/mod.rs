@@ -7,7 +7,7 @@ pub mod system;
 pub use date_time::DateTime;
 pub use julian_date::JulianDate;
 
-use crate::constants::{CALENDAR, SET};
+use crate::common::{CALENDAR, SET};
 use crate::string::{SpiceString, StringParam};
 use crate::{Error, Spice};
 use calendar::Calendar;

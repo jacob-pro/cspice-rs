@@ -4,6 +4,12 @@ use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 
+/// An owned nul terminated C string that can be used as input to SPICE functions.
+///
+/// A SpiceString can be created from a Rust &str type using [SpiceString::from].
+///
+/// An existing dynamically sized buffer can be converted in-place into a SpiceString using
+/// [SpiceString::from_buffer].
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct SpiceString(pub CString);
 
@@ -69,6 +75,9 @@ impl SpiceString {
     }
 }
 
+/// A reference to a nul-terminated C string.
+///
+/// A SpiceStr can be created from a reference to a byte buffer using [SpiceStr::from_buffer].
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct SpiceStr<'a>(pub &'a CStr);
 
@@ -110,6 +119,25 @@ impl Display for SpiceStr<'_> {
         f.write_str(&*self.as_str())
     }
 }
+
+/// Internal static C strings used when calling SPICE APIs.
+///
+/// Should be created using the [static_spice_str!] macro to ensure nul termination.
+#[derive(Copy, Clone)]
+pub(crate) struct StaticSpiceStr(pub &'static str);
+
+impl StaticSpiceStr {
+    pub(crate) unsafe fn as_mut_ptr(&self) -> *mut SpiceChar {
+        self.0.as_ptr() as *mut SpiceChar
+    }
+}
+
+macro_rules! static_spice_str {
+    ($input:literal) => {
+        StaticSpiceStr(concat!($input, "\0"))
+    };
+}
+pub(crate) use static_spice_str;
 
 /// Allows you to pass a Rust string that will automatically be converted into a nul terminated C
 /// string. Alternatively you can pass an existing &SpiceString as an argument so that the string

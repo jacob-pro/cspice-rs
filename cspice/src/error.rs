@@ -1,4 +1,4 @@
-use crate::constants::{GET, SET};
+use crate::common::{GET, SET};
 use crate::string::{SpiceStr, SpiceString};
 use crate::Spice;
 use cspice_sys::{

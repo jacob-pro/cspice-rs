@@ -1,4 +1,4 @@
-use crate::constants::{CALENDAR, GET, SET};
+use crate::common::{CALENDAR, GET, SET};
 use crate::string::SpiceStr;
 use crate::time::calendar::Calendar;
 use crate::time::julian_date::JulianDate;

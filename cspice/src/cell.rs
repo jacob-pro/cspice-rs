@@ -372,7 +372,7 @@ impl Cell<SpiceDouble> {
         let out = unsafe {
             wnreld_c(
                 self.as_mut_cell(),
-                comparison_op.as_spice_string().as_mut_ptr(),
+                comparison_op.as_spice_str().as_mut_ptr(),
                 other.as_mut_cell(),
             )
         };
