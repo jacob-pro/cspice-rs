@@ -9,7 +9,7 @@ pub struct Rectangular([SpiceDouble; 3]);
 
 impl SpiceFrom<Rectangular> for RaDec {
     /// See [recrad_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recrad_c.html).
-    fn from(rect: Rectangular, _: Spice) -> Self {
+    fn spice_from(rect: Rectangular, _: Spice) -> Self {
         let mut ra_dec = RaDec::default();
         unsafe {
             recrad_c(
@@ -41,7 +41,7 @@ pub struct Latitudinal {
 
 impl SpiceFrom<Rectangular> for Latitudinal {
     /// See [reclat_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/reclat_c.html).
-    fn from(rect: Rectangular, _: Spice) -> Self {
+    fn spice_from(rect: Rectangular, _: Spice) -> Self {
         let mut lat = Latitudinal::default();
         unsafe {
             reclat_c(

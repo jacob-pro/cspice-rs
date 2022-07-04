@@ -1,3 +1,4 @@
+use crate::convert::SpiceFrom;
 use crate::string::{SpiceStr, SpiceString};
 use crate::time::calendar::Calendar;
 use crate::time::date_time::DateTime;
@@ -29,16 +30,20 @@ impl<S: System> JulianDate<S> {
             scale: Default::default(),
         }
     }
+}
 
-    /// Convert the Julian Date to Ephemeris Time (TDB).
+impl<S: System> SpiceFrom<JulianDate<S>> for Et {
+    /// Convert a Julian Date to Ephemeris Time (TDB).
     #[inline]
-    pub fn to_et(&self, spice: Spice) -> Et {
-        Et::from_string(format!("JD {} {}", S::system_name(), self.value), spice).unwrap()
+    fn spice_from(jd: JulianDate<S>, spice: Spice) -> Self {
+        Et::from_string(format!("JD {} {}", S::system_name(), jd.value), spice).unwrap()
     }
+}
 
+impl<S: System> SpiceFrom<Et> for JulianDate<S> {
     /// Convert Ephemeris Time (TDB) to a Julian Date.
     #[inline]
-    pub fn from_et(et: Et, spice: Spice) -> Self {
+    fn spice_from(et: Et, spice: Spice) -> Self {
         let pictur = SpiceString::from(format!("JULIAND.############# ::{}", S::system_name()));
         let mut buffer = [0; 40];
         unsafe {
@@ -52,15 +57,12 @@ impl<S: System> JulianDate<S> {
         spice.get_last_error().unwrap();
         Self::new(SpiceStr::from_buffer(&buffer).as_str().parse().unwrap())
     }
+}
 
+impl<C: Calendar, S: System> SpiceFrom<DateTime<C, S>> for JulianDate<S> {
     #[inline]
-    pub fn to_date_time<C: Calendar>(&self, spice: Spice) -> DateTime<C, S> {
-        DateTime::from_et(self.to_et(spice), S::default(), spice)
-    }
-
-    #[inline]
-    pub fn from_date_time<C: Calendar>(date_time: DateTime<C, S>, spice: Spice) -> Self {
-        JulianDate::from_et(date_time.to_et(spice), spice)
+    fn spice_from(dt: DateTime<C, S>, spice: Spice) -> Self {
+        JulianDate::spice_from(Et::spice_from(dt, spice), spice)
     }
 }
 

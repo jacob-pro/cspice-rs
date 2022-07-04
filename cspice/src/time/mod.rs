@@ -12,24 +12,18 @@ use crate::string::{SpiceString, StringParam};
 use crate::{Error, Spice};
 use calendar::Calendar;
 use cspice_sys::{str2et_c, timdef_c, timout_c, SpiceDouble, SpiceInt};
+use derive_more::{From, Into};
 use std::fmt::{Debug, Display, Formatter};
-use system::System;
 
 /// Ephemeris Time (time in seconds past the ephemeris epoch J2000) (TDB).
 ///
 /// See [ET Means TDB](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/req/time.html#In%20the%20Toolkit%20ET%20Means%20TDB).
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, From, Into)]
 pub struct Et(pub SpiceDouble);
 
 impl Display for Et {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "ET {}", self.0)
-    }
-}
-
-impl From<SpiceDouble> for Et {
-    fn from(et: SpiceDouble) -> Self {
-        Self(et)
     }
 }
 
@@ -75,30 +69,6 @@ impl Et {
         spice.get_last_error()?;
         Ok(Self(output))
     }
-
-    /// Equivalent to [JulianDate::from_et()].
-    #[inline]
-    pub fn to_julian_date<S: System>(self, spice: Spice) -> JulianDate<S> {
-        JulianDate::from_et(self, spice)
-    }
-
-    /// Equivalent to [JulianDate::to_et()].
-    #[inline]
-    pub fn from_julian_date<S: System>(jd: JulianDate<S>, spice: Spice) -> Self {
-        jd.to_et(spice)
-    }
-
-    /// Equivalent to [DateTime::from_et()].
-    #[inline]
-    pub fn to_date_time<C: Calendar, S: System>(self, system: S, spice: Spice) -> DateTime<C, S> {
-        DateTime::from_et(self, system, spice)
-    }
-
-    /// Equivalent to [DateTime::to_et()].
-    #[inline]
-    pub fn from_date_time<C: Calendar, S: System>(date_time: DateTime<C, S>, spice: Spice) -> Self {
-        date_time.to_et(spice)
-    }
 }
 
 /// Functions relating to time conversion
@@ -124,6 +94,7 @@ impl Spice {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::convert::SpiceFrom;
     use crate::tests::get_test_spice;
     use crate::time::calendar::{Gregorian, Mixed};
     use crate::time::system::{Tdb, Utc};
@@ -132,7 +103,7 @@ mod tests {
     fn test_et_to_jd() {
         let spice = get_test_spice();
         assert_eq!(
-            Et(0f64).to_julian_date(spice),
+            JulianDate::spice_from(Et(0f64), spice),
             JulianDate::<Tdb>::new(2451545.0)
         );
     }
@@ -140,9 +111,9 @@ mod tests {
     #[test]
     fn test_jd_to_date_time() {
         let spice = get_test_spice();
-        let et = JulianDate::<Tdb>::new(1502273.5).to_et(spice);
-        let ut = et.to_date_time::<Mixed, Tdb>(Tdb, spice);
-        assert_eq!(ut, DateTime::new(-599, 1, 1, 0, 0, 0.0, Tdb));
+        let et = Et::spice_from(JulianDate::<Tdb>::new(1502273.5), spice);
+        let dt = DateTime::<Mixed, _>::from_et(et, Tdb, spice);
+        assert_eq!(dt, DateTime::new(-599, 1, 1, 0, 0, 0.0, Tdb));
     }
 
     #[test]
@@ -150,16 +121,24 @@ mod tests {
         let spice = get_test_spice();
         let jd = JulianDate::<Utc>::new(1502273.5);
         assert_eq!(
-            DateTime::<Mixed, _>::new(-599, 1, 1, 0, 0, 0.0, Utc::default()).to_julian_date(spice),
+            JulianDate::spice_from(
+                DateTime::<Mixed, _>::new(-599, 1, 1, 0, 0, 0.0, Utc::default()),
+                spice
+            ),
             jd
         );
         assert_eq!(
-            DateTime::<Mixed, _>::new(-599, 1, 1, 3, 0, 0.0, Utc::new(3, 0)).to_julian_date(spice),
+            JulianDate::spice_from(
+                DateTime::<Mixed, _>::new(-599, 1, 1, 3, 0, 0.0, Utc::new(3, 0)),
+                spice
+            ),
             jd
         );
         assert_eq!(
-            DateTime::<Gregorian, _>::new(-600, 12, 26, 0, 0, 0.0, Utc::default())
-                .to_julian_date(spice),
+            JulianDate::spice_from(
+                DateTime::<Gregorian, _>::new(-600, 12, 26, 0, 0, 0.0, Utc::default()),
+                spice
+            ),
             jd
         );
     }
