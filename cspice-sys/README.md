@@ -17,5 +17,13 @@ the `include` and `lib` directories).
 **WARNING**: On Unix like systems you will likely need to rename `lib/cspice.a` to `lib/libcspice.a` so that it can be
 successfully linked.
 
-You must also have [Clang](https://releases.llvm.org/download.html) installed and on your `PATH` to be able to generate 
+You must have [Clang](https://releases.llvm.org/download.html) installed and on your `PATH` to be able to generate 
 the bindings. 
+
+## Cross Compilation
+
+You can use the `CSPICE_CLANG_TARGET` environment variable to override the `--target` parameter for Clang (when 
+generating bindings).
+
+You can use the `CSPICE_CLANG_ROOT` environment variable to override the `--sysroot` parameter for Clang (when 
+generating bindings).
