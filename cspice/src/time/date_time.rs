@@ -10,6 +10,7 @@ use cspice_sys::{timdef_c, timout_c, SpiceInt};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
+/// An instant in time, typically expressed as a date and time of day.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct DateTime<T: Calendar, S: System> {
     pub year: i16,

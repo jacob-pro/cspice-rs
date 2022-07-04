@@ -9,7 +9,7 @@ use cspice_sys::{timout_c, SpiceDouble};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-/// See [Julian Date](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/time.html#Julian%20Date)
+/// See [Julian Date](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/time.html#Julian%20Date).
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct JulianDate<S: System> {
     pub value: SpiceDouble,

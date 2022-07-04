@@ -1,3 +1,5 @@
+//! The calendars supported by SPICE.
+
 /// See [Calendars in timout_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timout_c.html).
 pub trait Calendar {
     fn short_name() -> &'static str;

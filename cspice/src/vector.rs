@@ -1,3 +1,4 @@
+//! Functions for working with 3D Vectors.
 use crate::spice_unsafe;
 use cspice_sys::{vsep_c, SpiceDouble};
 use derive_more::{Deref, DerefMut, From, Into};

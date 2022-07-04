@@ -1,3 +1,4 @@
+//! Functions for working with SPICE Cells.
 use crate::common::{ComparisonOperator, Side};
 use crate::error::get_last_error;
 use crate::string::StringParam;
@@ -11,12 +12,14 @@ use cspice_sys::{
 };
 use std::ffi::c_void;
 
+/// A type that can be used in a SPICE Cell.
 pub trait CellType {}
 
 impl CellType for SpiceDouble {}
 impl CellType for SpiceInt {}
 impl CellType for SpiceChar {}
 
+/// A Rust wrapper around a SpiceCell and its data.
 pub struct Cell<T: CellType> {
     cell: cspice_sys::SpiceCell,
     #[allow(dead_code)]
@@ -163,6 +166,9 @@ impl Cell<SpiceChar> {
     }
 }
 
+/// Summary of a double precision window.
+///
+/// Returned from [Cell::window_summarize()]
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowSummary {
     pub total_measure_of_intervals: SpiceDouble,

@@ -1,3 +1,4 @@
+//! Miscellaneous enums and structures.
 use crate::string::{static_spice_str, StaticSpiceStr};
 use cspice_sys::SpiceChar;
 

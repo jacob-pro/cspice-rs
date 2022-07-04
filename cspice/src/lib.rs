@@ -51,6 +51,8 @@ pub fn try_acquire_thread() -> Result<(), SpiceThreadError> {
         }
     })
 }
+
+/// Error returned from [try_acquire_thread()].
 #[derive(Debug, Clone, Error)]
 #[error("SPICE is already in use by another thread")]
 pub struct SpiceThreadError(pub Thread);

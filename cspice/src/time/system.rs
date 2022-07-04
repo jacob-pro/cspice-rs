@@ -1,3 +1,4 @@
+//! The time systems supported by SPICE.
 use std::borrow::Cow;
 
 /// See [SPICE Time Subsystem](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/time.html).

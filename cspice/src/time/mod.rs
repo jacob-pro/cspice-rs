@@ -1,3 +1,4 @@
+//! Structures and functions for the various SPICE time subsystems.
 mod date_time;
 mod julian_date;
 

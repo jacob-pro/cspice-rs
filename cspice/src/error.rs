@@ -11,6 +11,7 @@ use thiserror::Error;
 
 const FILEN: SpiceInt = 255;
 
+/// An error that occurred in SPICE.
 #[derive(Debug, Clone, Error)]
 #[error("{short_message}\n\n{explanation}\n\n{long_message}\n\nTraceback:\n{traceback}")]
 pub struct Error {

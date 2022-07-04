@@ -1,3 +1,4 @@
+//! Functions for converting between different types of coordinates.
 use crate::spice_unsafe;
 use crate::vector::Vector3D;
 use cspice_sys::{reclat_c, recrad_c, SpiceDouble};

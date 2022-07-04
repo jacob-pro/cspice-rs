@@ -1,3 +1,4 @@
+//! Functions for converting between Rust strings and SPICE (C) strings.
 use cspice_sys::SpiceChar;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
