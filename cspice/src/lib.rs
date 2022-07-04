@@ -1,9 +1,13 @@
 pub mod cell;
 pub mod common;
+pub mod convert;
+pub mod coordinates;
 pub mod data;
 pub mod error;
+pub mod spk;
 pub mod string;
 pub mod time;
+pub mod vector;
 
 use crate::error::Error;
 use crate::string::SpiceString;

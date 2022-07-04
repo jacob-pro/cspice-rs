@@ -17,19 +17,13 @@ pub enum ComparisonOperator {
 
 impl ComparisonOperator {
     pub(crate) fn as_spice_str(&self) -> StaticSpiceStr {
-        static EQ: StaticSpiceStr = static_spice_str!("=");
-        static NE: StaticSpiceStr = static_spice_str!("<>");
-        static LEQ: StaticSpiceStr = static_spice_str!("<=");
-        static LT: StaticSpiceStr = static_spice_str!("<");
-        static GEQ: StaticSpiceStr = static_spice_str!(">=");
-        static GT: StaticSpiceStr = static_spice_str!(">");
         match &self {
-            ComparisonOperator::EQ => EQ,
-            ComparisonOperator::NE => NE,
-            ComparisonOperator::LEQ => LEQ,
-            ComparisonOperator::LT => LT,
-            ComparisonOperator::GEQ => GEQ,
-            ComparisonOperator::GT => GT,
+            ComparisonOperator::EQ => static_spice_str!("="),
+            ComparisonOperator::NE => static_spice_str!("<>"),
+            ComparisonOperator::LEQ => static_spice_str!("<="),
+            ComparisonOperator::LT => static_spice_str!("<"),
+            ComparisonOperator::GEQ => static_spice_str!(">="),
+            ComparisonOperator::GT => static_spice_str!(">"),
         }
     }
 }

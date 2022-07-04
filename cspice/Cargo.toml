@@ -9,6 +9,7 @@ authors = ["Jacob Halsey <jacob@jhalsey.com>"]
 [dependencies]
 chrono = { version = "0.4.19", optional = true }
 cspice-sys = { path = "../cspice-sys" }
+derive_more = "0.99.17"
 once_cell = "1.12.0"
 serde = { version = "1.0.137", features = ["derive"] }
 serde_plain = "1.0.0"
