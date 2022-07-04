@@ -1,10 +1,11 @@
 use crate::common::{CALENDAR, GET, SET};
+use crate::error::get_last_error;
 use crate::string::SpiceStr;
 use crate::time::calendar::Calendar;
 use crate::time::julian_date::JulianDate;
 use crate::time::system::System;
-use crate::time::Et;
-use crate::{spice_unsafe, Spice, SpiceString};
+use crate::time::{set_default_calendar, Et};
+use crate::{spice_unsafe, SpiceString};
 use cspice_sys::{timdef_c, timout_c, SpiceInt};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
@@ -61,7 +62,7 @@ impl<C: Calendar, S: System> DateTime<C, S> {
                 buffer.as_mut_ptr(),
             );
         });
-        Spice::get_last_error().unwrap();
+        get_last_error().unwrap();
         let output = SpiceStr::from_buffer(&buffer);
         let cow = output.as_str();
         let split: Vec<&str> = cow.split(':').collect();
@@ -103,7 +104,7 @@ impl<C: Calendar, S: System> From<DateTime<C, S>> for Et {
                 original_cal.as_mut_ptr(),
             );
         });
-        Spice::get_last_error().unwrap();
+        get_last_error().unwrap();
         let year = if dt.year > 0 {
             dt.year.to_string()
         } else {
@@ -118,7 +119,7 @@ impl<C: Calendar, S: System> From<DateTime<C, S>> for Et {
             dt.second,
             dt.system.meta_marker(),
         );
-        Spice::set_default_calendar::<C>();
+        set_default_calendar::<C>();
         let et = Et::from_string(date).unwrap();
         // Restore default calendar
         spice_unsafe!({
@@ -129,7 +130,7 @@ impl<C: Calendar, S: System> From<DateTime<C, S>> for Et {
                 original_cal.as_mut_ptr(),
             );
         });
-        Spice::get_last_error().unwrap();
+        get_last_error().unwrap();
         et
     }
 }

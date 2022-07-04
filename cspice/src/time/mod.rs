@@ -8,8 +8,9 @@ pub use date_time::DateTime;
 pub use julian_date::JulianDate;
 
 use crate::common::{CALENDAR, SET};
+use crate::error::get_last_error;
 use crate::string::{SpiceString, StringParam};
-use crate::{spice_unsafe, Error, Spice};
+use crate::{spice_unsafe, Error};
 use calendar::Calendar;
 use cspice_sys::{str2et_c, timdef_c, timout_c, SpiceDouble, SpiceInt};
 use derive_more::{From, Into};
@@ -49,7 +50,7 @@ impl Et {
                 buffer.as_mut_ptr(),
             );
         });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(SpiceString::from_buffer(buffer).to_string())
     }
 
@@ -62,29 +63,26 @@ impl Et {
         spice_unsafe!({
             str2et_c(string.into().as_mut_ptr(), &mut output);
         });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(Self(output))
     }
 }
 
-/// Functions relating to time conversion
-impl Spice {
-    /// Sets the default calendar to use with input strings.
-    ///
-    /// See [timdef_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timdef_c.html).
-    #[inline]
-    pub fn set_default_calendar<C: Calendar>() {
-        let name = SpiceString::from(C::name());
-        spice_unsafe!({
-            timdef_c(
-                SET.as_mut_ptr(),
-                CALENDAR.as_mut_ptr(),
-                0,
-                name.as_mut_ptr(),
-            );
-        });
-        Self::get_last_error().unwrap();
-    }
+/// Sets the default calendar to use with input strings.
+///
+/// See [timdef_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/timdef_c.html).
+#[inline]
+pub fn set_default_calendar<C: Calendar>() {
+    let name = SpiceString::from(C::name());
+    spice_unsafe!({
+        timdef_c(
+            SET.as_mut_ptr(),
+            CALENDAR.as_mut_ptr(),
+            0,
+            name.as_mut_ptr(),
+        );
+    });
+    get_last_error().unwrap();
 }
 
 #[cfg(test)]

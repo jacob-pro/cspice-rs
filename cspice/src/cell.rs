@@ -1,6 +1,7 @@
 use crate::common::{ComparisonOperator, Side};
+use crate::error::get_last_error;
 use crate::string::StringParam;
-use crate::{spice_unsafe, Error, Spice};
+use crate::{spice_unsafe, Error};
 use cspice_sys::{
     _SpiceDataType_SPICE_CHR, _SpiceDataType_SPICE_DP, _SpiceDataType_SPICE_INT, appndc_c,
     appndd_c, appndi_c, card_c, copy_c, scard_c, wncard_c, wncomd_c, wncond_c, wndifd_c, wnelmd_c,
@@ -35,7 +36,7 @@ impl<T: CellType> Cell<T> {
         spice_unsafe!({
             scard_c(cardinality as SpiceInt, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Return the size (maximum cardinality) of a SPICE cell.
@@ -43,7 +44,7 @@ impl<T: CellType> Cell<T> {
     /// See [size_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/size_c.html)
     pub fn get_size(&mut self) -> Result<usize, Error> {
         let out = spice_unsafe!({ card_c(self.as_mut_cell()) });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(out as usize)
     }
 
@@ -52,7 +53,7 @@ impl<T: CellType> Cell<T> {
     /// See [card_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/card_c.html).
     pub fn get_cardinality(&mut self) -> Result<usize, Error> {
         let out = spice_unsafe!({ card_c(self.as_mut_cell()) });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(out as usize)
     }
 
@@ -63,7 +64,7 @@ impl<T: CellType> Cell<T> {
         spice_unsafe!({
             copy_c(self.as_mut_cell(), dest.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 }
 
@@ -94,7 +95,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             appndd_c(item, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 }
 
@@ -125,7 +126,7 @@ impl Cell<SpiceInt> {
         spice_unsafe!({
             appndi_c(item, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 }
 
@@ -158,7 +159,7 @@ impl Cell<SpiceChar> {
         spice_unsafe!({
             appndc_c(item.into().as_mut_ptr(), self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 }
 
@@ -178,7 +179,7 @@ impl Cell<SpiceDouble> {
     /// See [wncard_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wncard_c.html).
     pub fn window_cardinality(&mut self) -> Result<SpiceInt, Error> {
         let out = spice_unsafe!({ wncard_c(self.as_mut_cell()) });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(out)
     }
 
@@ -194,7 +195,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wncomd_c(left, right, self.as_mut_cell(), output.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Contract each of the intervals of a double precision window.
@@ -204,7 +205,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wncond_c(left, right, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Place the difference of two double precision windows into a third window.
@@ -222,7 +223,7 @@ impl Cell<SpiceDouble> {
                 output.as_mut_cell(),
             );
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Determine whether a point is an element of a double precision window
@@ -230,7 +231,7 @@ impl Cell<SpiceDouble> {
     /// See [wnelmd_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnelmd_c.html).
     pub fn window_contains_element(&mut self, point: SpiceDouble) -> Result<bool, Error> {
         let out = spice_unsafe!({ wnelmd_c(point, self.as_mut_cell()) });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(out == SPICETRUE as SpiceBoolean)
     }
 
@@ -241,7 +242,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wnexpd_c(left, right, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Extract the left or right endpoints from a double precision window.
@@ -251,7 +252,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wnextd_c(side.as_spice_char(), self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Fetch a particular interval from a double precision window.
@@ -262,7 +263,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wnfetd_c(self.as_mut_cell(), n as SpiceInt, &mut left, &mut right);
         });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok((left, right))
     }
 
@@ -273,7 +274,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wnfild_c(small_gap, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Filter (remove) small intervals from a double precision window.
@@ -283,7 +284,7 @@ impl Cell<SpiceDouble> {
         spice_unsafe!({
             wnfltd_c(small_interval, self.as_mut_cell());
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Determine whether an interval is included in a double precision window.
@@ -295,7 +296,7 @@ impl Cell<SpiceDouble> {
         right: SpiceDouble,
     ) -> Result<bool, Error> {
         let out = spice_unsafe!({ wnincd_c(left, right, self.as_mut_cell()) });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(out == SPICETRUE as SpiceBoolean)
     }
 
@@ -308,7 +309,7 @@ impl Cell<SpiceDouble> {
         right: SpiceDouble,
     ) -> Result<(), Error> {
         spice_unsafe!({ wninsd_c(left, right, self.as_mut_cell()) });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Place the intersection of two double precision windows into a third window.
@@ -326,7 +327,7 @@ impl Cell<SpiceDouble> {
                 output.as_mut_cell(),
             )
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Compare two double precision windows.
@@ -344,7 +345,7 @@ impl Cell<SpiceDouble> {
                 other.as_mut_cell(),
             )
         });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(out == SPICETRUE as SpiceBoolean)
     }
 
@@ -364,7 +365,7 @@ impl Cell<SpiceDouble> {
                 &mut idxlon,
             )
         });
-        Spice::get_last_error()?;
+        get_last_error()?;
         Ok(WindowSummary {
             total_measure_of_intervals: meas,
             average_measure: avg,
@@ -389,7 +390,7 @@ impl Cell<SpiceDouble> {
                 output.as_mut_cell(),
             );
         });
-        Spice::get_last_error()
+        get_last_error()
     }
 
     /// Form a valid double precision window from the contents of a window array.
@@ -397,6 +398,6 @@ impl Cell<SpiceDouble> {
     /// See [wnvald_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/wnvald_c.html).
     pub fn window_validate(&mut self, size: usize, n: usize) -> Result<(), Error> {
         spice_unsafe!({ wnvald_c(size as SpiceInt, n as SpiceInt, self.as_mut_cell()) });
-        Spice::get_last_error()
+        get_last_error()
     }
 }

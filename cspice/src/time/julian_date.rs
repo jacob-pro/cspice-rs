@@ -1,9 +1,10 @@
+use crate::error::get_last_error;
+use crate::spice_unsafe;
 use crate::string::{SpiceStr, SpiceString};
 use crate::time::calendar::Calendar;
 use crate::time::date_time::DateTime;
 use crate::time::system::System;
 use crate::time::Et;
-use crate::{spice_unsafe, Spice};
 use cspice_sys::{timout_c, SpiceDouble};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
@@ -53,7 +54,7 @@ impl<S: System> From<Et> for JulianDate<S> {
                 buffer.as_mut_ptr(),
             );
         });
-        Spice::get_last_error().unwrap();
+        get_last_error().unwrap();
         Self::new(SpiceStr::from_buffer(&buffer).as_str().parse().unwrap())
     }
 }
