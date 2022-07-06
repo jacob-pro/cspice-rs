@@ -1,11 +1,13 @@
 [package]
 name = "cspice-sys"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 build = "build.rs"
 description = "Unsafe bindings to the NAIF CSPICE toolkit"
 license = "LGPL-3.0"
 authors = ["Jacob Halsey <jacob@jhalsey.com>"]
+homepage = "https://github.com/jacob-pro/cspice-rs/tree/master/cspice-sys"
+repository = "https://github.com/jacob-pro/cspice-rs"
 
 [dependencies]
 

@@ -6,6 +6,8 @@ Unsafe bindings to the NAIF [SPICE Toolkit](https://naif.jpl.nasa.gov/naif/index
 
 Read the [official CSPICE documentation online](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/index.html)
 
+*Please note this is a complete replacement of the 0.x version of the crate, under a new maintainer*
+
 ## Installation
 
 You must first have installed the CSPICE toolkit by downloading and extracting the appropriate archive from 
@@ -19,6 +21,8 @@ successfully linked.
 
 You must have [Clang](https://releases.llvm.org/download.html) installed and on your `PATH` to be able to generate 
 the bindings. 
+
+Also see the [GitHub workflow](../.github/workflows/rust.yml) for examples on how to set this up.
 
 ## Cross Compilation
 
