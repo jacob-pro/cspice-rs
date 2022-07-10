@@ -23,14 +23,15 @@ use thiserror::Error;
 /// First checks that it is safe for the current thread to access SPICE, otherwise panics.
 macro_rules! spice_unsafe {
     ($l:block) => {{
-        crate::try_acquire_thread().unwrap();
+        if let Err(e) = crate::try_acquire_thread() {
+            panic!("{e}")
+        }
         unsafe { $l }
     }};
 }
 pub(crate) use spice_unsafe;
 
 /// The SPICE library [is not thread safe](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe).
-///
 /// This function checks if it is safe for the current thread to call SPICE functions. SPICE
 /// will be locked to the first thread that calls this function.
 pub fn try_acquire_thread() -> Result<(), SpiceThreadError> {
@@ -55,7 +56,8 @@ pub fn try_acquire_thread() -> Result<(), SpiceThreadError> {
 
 /// Error returned from [try_acquire_thread()].
 #[derive(Debug, Clone, Error)]
-#[error("SPICE is already in use by another thread")]
+#[cfg_attr(not(test), error("SPICE is already in use by another thread"))]
+#[cfg_attr(test, error("SPICE is already in use by another thread. When running unit tests you will likely need to use the `--test-threads=1` argument"))]
 pub struct SpiceThreadError(pub Thread);
 
 #[cfg(test)]
