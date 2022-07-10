@@ -1,6 +1,8 @@
 # cspice-sys
 
 [![Build](https://github.com/jacob-pro/cspice-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/jacob-pro/cspice-rs/actions)
+[![crates.io](https://img.shields.io/crates/v/cspice-sys.svg)](https://crates.io/crates/cspice-sys)
+[![docs.rs](https://docs.rs/cspice-sys/badge.svg)](https://docs.rs/cspice-sys/latest/cspice_sys/)
 
 Unsafe bindings to the NAIF [SPICE Toolkit](https://naif.jpl.nasa.gov/naif/index.html).
 
