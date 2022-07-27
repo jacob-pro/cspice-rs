@@ -9,7 +9,9 @@ pub mod string;
 pub mod time;
 pub mod vector;
 
-use crate::error::{set_error_defaults, Error};
+pub use crate::error::Error;
+
+use crate::error::set_error_defaults;
 use crate::string::SpiceString;
 use once_cell::sync::OnceCell;
 use std::cell::Cell;
