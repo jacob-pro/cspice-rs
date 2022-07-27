@@ -1,8 +1,8 @@
 extern crate core;
 
-use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{env, fs};
 
 const CSPICE_DIR: &str = "CSPICE_DIR";
 const CSPICE_CLANG_TARGET: &str = "CSPICE_CLANG_TARGET";
@@ -62,24 +62,23 @@ fn main() {
     println!("cargo:rustc-link-lib=static=cspice");
 }
 
-// For docs.rs only we will download and extract the CSPICE library automatically
+// For docs.rs only we will bundle the headers
 // It is not a good idea to do this in general though, it should be specific to the user / platform
 // https://kornel.ski/rust-sys-crate
 fn docs_rs(out_dir: &Path) {
-    let outfile = out_dir.join("cspice.tar.Z");
-    let curl_status = Command::new("curl")
-        .arg("https://naif.jpl.nasa.gov/pub/naif/toolkit//C/PC_Linux_GCC_64bit/packages/cspice.tar.Z")
-        .arg("-o")
-        .arg(outfile.display().to_string())
-        .status()
-        .expect("Unable to call curl");
-    assert!(curl_status.success());
+    let headers_dir = out_dir.join("docs-rs-headers");
+    fs::create_dir_all(&headers_dir).expect("Unable to create CSPICE headers directory");
+    let headers_tar = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("docs-rs-headers.tar")
+        .canonicalize()
+        .unwrap();
     let tar_status = Command::new("tar")
         .arg("-zxf")
-        .arg("cspice.tar.Z")
-        .current_dir(out_dir)
+        .arg(&headers_tar)
+        .arg("-C")
+        .arg(&headers_dir)
         .status()
         .expect("Unable to call tar");
     assert!(tar_status.success());
-    env::set_var("CSPICE_DIR", out_dir.join("cspice").as_os_str());
+    env::set_var("CSPICE_DIR", headers_dir.as_os_str());
 }
