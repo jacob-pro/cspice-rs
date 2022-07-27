@@ -73,7 +73,7 @@ fn docs_rs(out_dir: &Path) {
         .canonicalize()
         .unwrap();
     let tar_status = Command::new("tar")
-        .arg("-zxf")
+        .arg("-xf")
         .arg(&headers_tar)
         .arg("-C")
         .arg(&headers_dir)
