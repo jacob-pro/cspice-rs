@@ -6,7 +6,7 @@ pub(crate) static SET: StaticSpiceStr = static_spice_str!("SET");
 pub(crate) static GET: StaticSpiceStr = static_spice_str!("GET");
 pub(crate) static CALENDAR: StaticSpiceStr = static_spice_str!("CALENDAR");
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComparisonOperator {
     EQ,
     NE,
@@ -30,7 +30,7 @@ impl ComparisonOperator {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Side {
     Left,
     Right,
@@ -45,7 +45,7 @@ impl Side {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 pub enum AberrationCorrection {
     NONE,
