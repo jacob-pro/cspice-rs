@@ -22,7 +22,7 @@ pub struct Error {
 }
 
 /// See [Choosing the Error Response Action](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Choosing%20the%20Error%20Response%20Action).
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ErrorAction {
     Abort,
@@ -33,7 +33,7 @@ pub enum ErrorAction {
 }
 
 /// See [Choosing Where the Error Messages Are Sent](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Choosing%20Where%20the%20Error%20Messages%20Are%20Sent).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorDevice {
     Screen,
     Null,
