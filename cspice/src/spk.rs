@@ -5,7 +5,7 @@ use crate::string::StringParam;
 use crate::time::Et;
 use crate::vector::{Vector3D, Vector6D};
 use crate::{spice_unsafe, Error};
-use cspice_sys::{spkez_c, spkpos_c, SpiceDouble};
+use cspice_sys::{spkez_c, spkezp_c, spkpos_c, SpiceDouble};
 
 /// Return the position of a target body relative to an observing body, optionally corrected for
 /// light time (planetary aberration) and stellar aberration.
@@ -69,4 +69,36 @@ where
     });
     get_last_error()?;
     Ok((pos_vel, light_time))
+}
+
+/// Return the position of a target body relative to an observing
+/// body, optionally corrected for light time (planetary aberration)
+/// and stellar aberration.
+///
+/// See [spkezp_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html).
+pub fn ezp<'r, R>(
+    target: i32,
+    et: Et,
+    reference_frame: R,
+    aberration_correction: AberrationCorrection,
+    observing_body: i32,
+) -> Result<(Vector3D, SpiceDouble), Error>
+where
+    R: Into<StringParam<'r>>,
+{
+    let mut position = Vector3D::default();
+    let mut light_time = 0.0;
+    spice_unsafe!({
+        spkezp_c(
+            target,
+            et.0,
+            reference_frame.into().as_mut_ptr(),
+            aberration_correction.as_spice_char(),
+            observing_body,
+            position.as_mut_ptr(),
+            &mut light_time,
+        )
+    });
+    get_last_error()?;
+    Ok((position, light_time))
 }
