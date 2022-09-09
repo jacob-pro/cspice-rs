@@ -40,8 +40,9 @@ where
     Ok((position, light_time))
 }
 
-/// Return the position and velocity of a target body relative to an observing body,
-/// optionally corrected for light time (planetary aberration) and stellar aberration.
+/// Return the state (position and velocity) of a target body
+/// relative to an observing body, optionally corrected for light
+/// time (planetary aberration) and stellar aberration.
 ///
 /// See [spkez_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkez_c.html).
 pub fn ez<'r, R>(
@@ -101,4 +102,38 @@ where
     });
     get_last_error()?;
     Ok((position, light_time))
+}
+
+/// Return the state (position and velocity) of a target body
+/// relative to an observing body, optionally corrected for light
+/// time (planetary aberration) and stellar aberration.
+///
+/// See [spkezr_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezr_c.html)
+pub fn ezr<'t, 'r, 'o, T, R, O>(
+    target: T,
+    et: Et,
+    reference_frame: R,
+    aberration_correction: AberrationCorrection,
+    observing_body: O,
+) -> Result<(Vector6D, SpiceDouble), Error>
+where
+    T: Into<StringParam<'t>>,
+    R: Into<StringParam<'r>>,
+    O: Into<StringParam<'o>>,
+{
+    let mut pos_vel = Vector6D::default();
+    let mut light_time = 0.0;
+    spice_unsafe!({
+        spkpos_c(
+            target.into().as_mut_ptr(),
+            et.0,
+            reference_frame.into().as_mut_ptr(),
+            aberration_correction.as_spice_char(),
+            observing_body.into().as_mut_ptr(),
+            pos_vel.as_mut_ptr(),
+            &mut light_time,
+        )
+    });
+    get_last_error()?;
+    Ok((pos_vel, light_time))
 }
