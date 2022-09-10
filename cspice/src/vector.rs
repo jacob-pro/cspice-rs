@@ -23,7 +23,3 @@ impl Vector3D {
         })
     }
 }
-
-/// A 6D vector
-#[derive(Copy, Clone, Debug, Default, PartialEq, From, Into, Deref, DerefMut)]
-pub struct Vector6D([SpiceDouble; 6]);

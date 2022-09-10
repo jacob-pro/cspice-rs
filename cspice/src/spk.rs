@@ -3,7 +3,7 @@ use crate::common::AberrationCorrection;
 use crate::error::get_last_error;
 use crate::string::StringParam;
 use crate::time::Et;
-use crate::vector::{Vector3D, Vector6D};
+use crate::vector::Vector3D;
 use crate::{spice_unsafe, Error};
 use cspice_sys::{spkez_c, spkezp_c, spkezr_c, spkpos_c, SpiceDouble};
 
@@ -45,17 +45,17 @@ where
 /// time (planetary aberration) and stellar aberration.
 ///
 /// See [spkez_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkez_c.html).
-pub fn ez<'r, R>(
+pub fn easy_reader<'r, R>(
     target: i32,
     et: Et,
     reference_frame: R,
     aberration_correction: AberrationCorrection,
     observing_body: i32,
-) -> Result<(Vector6D, SpiceDouble), Error>
+) -> Result<([SpiceDouble; 6], SpiceDouble), Error>
 where
     R: Into<StringParam<'r>>,
 {
-    let mut pos_vel = Vector6D::default();
+    let mut pos_vel = [0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64];
     let mut light_time = 0.0;
     spice_unsafe!({
         spkez_c(
@@ -77,7 +77,7 @@ where
 /// and stellar aberration.
 ///
 /// See [spkezp_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html).
-pub fn ezp<'r, R>(
+pub fn easy_position<'r, R>(
     target: i32,
     et: Et,
     reference_frame: R,
@@ -109,19 +109,19 @@ where
 /// time (planetary aberration) and stellar aberration.
 ///
 /// See [spkezr_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezr_c.html)
-pub fn ezr<'t, 'r, 'o, T, R, O>(
+pub fn easier_reader<'t, 'r, 'o, T, R, O>(
     target: T,
     et: Et,
     reference_frame: R,
     aberration_correction: AberrationCorrection,
     observing_body: O,
-) -> Result<(Vector6D, SpiceDouble), Error>
+) -> Result<([SpiceDouble; 6], SpiceDouble), Error>
 where
     T: Into<StringParam<'t>>,
     R: Into<StringParam<'r>>,
     O: Into<StringParam<'o>>,
 {
-    let mut pos_vel = Vector6D::default();
+    let mut pos_vel = [0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64];
     let mut light_time = 0.0;
     spice_unsafe!({
         spkezr_c(
@@ -144,6 +144,7 @@ mod tests {
     use crate::tests::load_test_data;
     const EPSILON: f64 = 1e-10;
     const ETS: [Et; 3] = [Et(0.0), Et(3600.0), Et(120000.0)];
+    // Test data generated via spiceypy using the above ephemeris times
     const TEST_DATA: [[SpiceDouble; 6]; 3] = [
         [
             -291569.26474221050739f64,
@@ -193,7 +194,8 @@ mod tests {
     fn moon_earth_spkez_test() {
         load_test_data();
         for i in 0..3 {
-            let (pos_vel, lt) = ez(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
+            let (pos_vel, lt) =
+                easy_reader(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
             for j in 0..6 {
                 assert!((pos_vel[j] - TEST_DATA[i][j]).abs() < EPSILON);
             }
@@ -205,7 +207,8 @@ mod tests {
     fn moon_earth_spkezp_test() {
         load_test_data();
         for i in 0..3 {
-            let (pos, lt) = ezp(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
+            let (pos, lt) =
+                easy_position(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
             for j in 0..3 {
                 assert!((pos[j] - TEST_DATA[i][j]).abs() < EPSILON);
             }
@@ -218,7 +221,7 @@ mod tests {
         load_test_data();
         for i in 0..3 {
             let (pos_vel, lt) =
-                ezr("moon", ETS[i], "J2000", AberrationCorrection::LT, "earth").unwrap();
+                easier_reader("moon", ETS[i], "J2000", AberrationCorrection::LT, "earth").unwrap();
             for j in 0..6 {
                 assert!((pos_vel[j] - TEST_DATA[i][j]).abs() < EPSILON);
             }
