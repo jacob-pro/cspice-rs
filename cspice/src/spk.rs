@@ -5,7 +5,7 @@ use crate::string::StringParam;
 use crate::time::Et;
 use crate::vector::{Vector3D, Vector6D};
 use crate::{spice_unsafe, Error};
-use cspice_sys::{spkez_c, spkezp_c, spkpos_c, SpiceDouble};
+use cspice_sys::{spkez_c, spkezp_c, spkezr_c, spkpos_c, SpiceDouble};
 
 /// Return the position of a target body relative to an observing body, optionally corrected for
 /// light time (planetary aberration) and stellar aberration.
@@ -124,7 +124,7 @@ where
     let mut pos_vel = Vector6D::default();
     let mut light_time = 0.0;
     spice_unsafe!({
-        spkpos_c(
+        spkezr_c(
             target.into().as_mut_ptr(),
             et.0,
             reference_frame.into().as_mut_ptr(),
