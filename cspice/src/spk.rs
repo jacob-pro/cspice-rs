@@ -121,7 +121,7 @@ where
     R: Into<StringParam<'r>>,
     O: Into<StringParam<'o>>,
 {
-    let mut pos_vel = [0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64];
+    let mut pos_vel = [0.0f64; 6];
     let mut light_time = 0.0;
     spice_unsafe!({
         spkezr_c(
