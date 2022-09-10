@@ -55,7 +55,7 @@ pub fn easy_reader<'r, R>(
 where
     R: Into<StringParam<'r>>,
 {
-    let mut pos_vel = [0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64];
+    let mut pos_vel = [0.0f64; 6];
     let mut light_time = 0.0;
     spice_unsafe!({
         spkez_c(
