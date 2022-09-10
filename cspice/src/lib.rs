@@ -74,7 +74,7 @@ mod tests {
         static SPICE_INIT: Once = Once::new();
         SPICE_INIT.call_once(|| {
             let data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test_data");
-            furnish(data_dir.join("naif0012.tls").to_string_lossy()).unwrap();
+            furnish(data_dir.join("testkernel.txt").to_string_lossy()).unwrap();
         });
     }
 

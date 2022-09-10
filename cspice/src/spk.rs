@@ -137,3 +137,92 @@ where
     get_last_error()?;
     Ok((pos_vel, light_time))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::load_test_data;
+    const EPSILON: f64 = 1e-10;
+    const ETS: [Et; 3] = [Et(0.0), Et(3600.0), Et(120000.0)];
+    const TEST_DATA: [[SpiceDouble; 6]; 3] = [
+        [
+            -291569.26474221050739f64,
+            -266709.18712562322617f64,
+            -76099.15410456061363f64,
+            0.64353061379157f64,
+            -0.66608181544709f64,
+            -0.30132283179347f64,
+        ],
+        [
+            -289240.78060919046402f64,
+            -269096.44152130186558f64,
+            -77180.89871158450842f64,
+            0.65006211575479f64,
+            -0.66016273764220f64,
+            -0.29964267392589f64,
+        ],
+        [
+            -202558.33919326588511f64,
+            -333880.37279736995697f64,
+            -108450.58380541205406f64,
+            0.82840534359059f64,
+            -0.44612163419131f64,
+            -0.23419745913028f64,
+        ],
+    ];
+    const LTS: [SpiceDouble; 3] = [
+        1.3423106094958182f64,
+        1.342693954033622f64,
+        1.3519329044685606f64,
+    ];
+
+    #[test]
+    fn moon_earth_spkpos_test() {
+        load_test_data();
+        for i in 0..3 {
+            let (pos, lt) =
+                position("moon", ETS[i], "J2000", AberrationCorrection::LT, "earth").unwrap();
+            for j in 0..3 {
+                assert!((pos[j] - TEST_DATA[i][j]).abs() < EPSILON);
+            }
+            assert!((lt - LTS[i]).abs() < EPSILON);
+        }
+    }
+
+    #[test]
+    fn moon_earth_spkez_test() {
+        load_test_data();
+        for i in 0..3 {
+            let (pos_vel, lt) = ez(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
+            for j in 0..6 {
+                assert!((pos_vel[j] - TEST_DATA[i][j]).abs() < EPSILON);
+            }
+            assert!((lt - LTS[i]).abs() < EPSILON);
+        }
+    }
+
+    #[test]
+    fn moon_earth_spkezp_test() {
+        load_test_data();
+        for i in 0..3 {
+            let (pos, lt) = ezp(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
+            for j in 0..3 {
+                assert!((pos[j] - TEST_DATA[i][j]).abs() < EPSILON);
+            }
+            assert!((lt - LTS[i]).abs() < EPSILON);
+        }
+    }
+
+    #[test]
+    fn moon_earth_spkezr_test() {
+        load_test_data();
+        for i in 0..3 {
+            let (pos_vel, lt) =
+                ezr("moon", ETS[i], "J2000", AberrationCorrection::LT, "earth").unwrap();
+            for j in 0..6 {
+                assert!((pos_vel[j] - TEST_DATA[i][j]).abs() < EPSILON);
+            }
+            assert!((lt - LTS[i]).abs() < EPSILON);
+        }
+    }
+}

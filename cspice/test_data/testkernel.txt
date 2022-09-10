@@ -1,0 +1,6 @@
+\begindata
+KERNELS_TO_LOAD=(
+    'test_data/naif0012.tls',
+    'test_data/de432s.bsp',
+)
+\begintext
