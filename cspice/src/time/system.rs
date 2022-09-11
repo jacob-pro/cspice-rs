@@ -10,15 +10,15 @@ pub trait System: Default {
 /// Terrestrial Dynamical Time (TDT).
 ///
 /// Note: TDT and TT represent the same time system
-#[derive(Copy, Clone, Debug, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Tdt;
 
 /// Barycentric Dynamical Time (TDB).
-#[derive(Copy, Clone, Debug, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Tdb;
 
 /// Coordinated Universal Time (UTC).
-#[derive(Copy, Clone, Debug, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Utc {
     pub zone_hours: i8,
     pub zone_minutes: u8,
