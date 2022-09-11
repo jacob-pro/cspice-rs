@@ -23,30 +23,12 @@ pub struct AzEl {
 }
 
 impl AzEl {
-    /// See [azlrec_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/azlrec_c.html)
-    pub fn to_rect(&self, azccw: bool, elplsz: bool) -> Rectangular {
-        let rect = Rectangular::default();
-        spice_unsafe!({
-            azlrec_c(
-                self.range as SpiceDouble,
-                self.az as SpiceDouble,
-                self.el as SpiceDouble,
-                azccw as SpiceBoolean,
-                elplsz as SpiceBoolean,
-                rect.as_ptr() as *mut SpiceDouble,
-            )
-        });
-        rect
-    }
-}
-
-impl Rectangular {
     /// See [recazl_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recazl_c.html)
-    pub fn to_azel(&self, azccw: bool, elplsz: bool) -> AzEl {
+    pub fn from_rect(rect: &Rectangular, azccw: bool, elplsz: bool) -> AzEl {
         let mut az_el = AzEl::default();
         spice_unsafe!({
             recazl_c(
-                self.as_ptr() as *mut SpiceDouble,
+                rect.as_ptr() as *mut SpiceDouble,
                 azccw as SpiceBoolean,
                 elplsz as SpiceBoolean,
                 &mut az_el.range,
@@ -56,7 +38,10 @@ impl Rectangular {
         });
         az_el
     }
+}
 
+impl Rectangular {
+    /// See [azlrec_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/azlrec_c.html)
     pub fn from_azel(azel: &AzEl, azccw: bool, elplsz: bool) -> Self {
         let rect = Rectangular::default();
         spice_unsafe!({
@@ -122,42 +107,91 @@ impl From<Rectangular> for Latitudinal {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
+    const EPSILON: f64 = 1e-3;
+
+    // Test data comes from NAIF website https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recazl_c.html
+    const TEST_DATA_F_F: [[SpiceDouble; 6]; 11] = [
+        [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+        [1.000, 0.000, 0.000, 1.000, 0.000, 0.000],
+        [0.000, 1.000, 0.000, 1.000, 270.000, 0.000],
+        [0.000, 0.000, 1.000, 1.000, 0.000, -90.000],
+        [-1.000, 0.000, 0.000, 1.000, 180.000, 0.000],
+        [0.000, -1.000, 0.000, 1.000, 90.000, 0.000],
+        [0.000, 0.000, -1.000, 1.000, 0.000, 90.000],
+        [1.000, 1.000, 0.000, 1.414, 315.000, 0.000],
+        [1.000, 0.000, 1.000, 1.414, 0.000, -45.000],
+        [0.000, 1.000, 1.000, 1.414, 270.000, -45.000],
+        [1.000, 1.000, 1.000, 1.732, 315.000, -35.264],
+    ];
+
+    const TEST_DATA_F_T: [[SpiceDouble; 6]; 11] = [
+        [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+        [1.000, 0.000, 0.000, 1.000, 0.000, 0.000],
+        [0.000, 1.000, 0.000, 1.000, 270.000, 0.000],
+        [0.000, 0.000, 1.000, 1.000, 0.000, 90.000],
+        [-1.000, 0.000, 0.000, 1.000, 180.000, 0.000],
+        [0.000, -1.000, 0.000, 1.000, 90.000, 0.000],
+        [0.000, 0.000, -1.000, 1.000, 0.000, -90.000],
+        [1.000, 1.000, 0.000, 1.414, 315.000, 0.000],
+        [1.000, 0.000, 1.000, 1.414, 0.000, 45.000],
+        [0.000, 1.000, 1.000, 1.414, 270.000, 45.000],
+        [1.000, 1.000, 1.000, 1.732, 315.000, 35.264],
+    ];
+
+    const TEST_DATA_T_F: [[SpiceDouble; 6]; 11] = [
+        [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+        [1.000, 0.000, 0.000, 1.000, 0.000, 0.000],
+        [0.000, 1.000, 0.000, 1.000, 90.000, 0.000],
+        [0.000, 0.000, 1.000, 1.000, 0.000, -90.000],
+        [-1.000, 0.000, 0.000, 1.000, 180.000, 0.000],
+        [0.000, -1.000, 0.000, 1.000, 270.000, 0.000],
+        [0.000, 0.000, -1.000, 1.000, 0.000, 90.000],
+        [1.000, 1.000, 0.000, 1.414, 45.000, 0.000],
+        [1.000, 0.000, 1.000, 1.414, 0.000, -45.000],
+        [0.000, 1.000, 1.000, 1.414, 90.000, -45.000],
+        [1.000, 1.000, 1.000, 1.732, 45.000, -35.264],
+    ];
+
+    const TEST_DATA_T_T: [[SpiceDouble; 6]; 11] = [
+        [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+        [1.000, 0.000, 0.000, 1.000, 0.000, 0.000],
+        [0.000, 1.000, 0.000, 1.000, 90.000, 0.000],
+        [0.000, 0.000, 1.000, 1.000, 0.000, 90.000],
+        [-1.000, 0.000, 0.000, 1.000, 180.000, 0.000],
+        [0.000, -1.000, 0.000, 1.000, 270.000, 0.000],
+        [0.000, 0.000, -1.000, 1.000, 0.000, -90.000],
+        [1.000, 1.000, 0.000, 1.414, 45.000, 0.000],
+        [1.000, 0.000, 1.000, 1.414, 0.000, 45.000],
+        [0.000, 1.000, 1.000, 1.414, 90.000, 45.000],
+        [1.000, 1.000, 1.000, 1.732, 45.000, 35.264],
+    ];
+
     #[test]
-    fn azel_to_rect() {
-        let test1: [[f64; 6]; 11] = [
-            [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-            [1.000, 0.000, 0.000, 1.000, 0.000, 0.000],
-            [0.000, 1.000, 0.000, 1.000, 270.000, 0.000],
-            [0.000, 0.000, 1.000, 1.000, 0.000, -90.000],
-            [-1.000, 0.000, 0.000, 1.000, 180.000, 0.000],
-            [0.000, -1.000, 0.000, 1.000, 90.000, 0.000],
-            [0.000, 0.000, -1.000, 1.000, 0.000, 90.000],
-            [1.000, 1.000, 0.000, 1.414, 315.000, 0.000], // These have much higher deltas ~0.00015
-            [1.000, 0.000, 1.000, 1.414, 0.000, -45.000], // These have much higher deltas ~0.00015
-            [0.000, 1.000, 1.000, 1.414, 270.000, -45.000], // These have much higher deltas ~0.00015
-            [1.000, 1.000, 1.000, 1.732, 315.000, -35.264],
-        ];
-        for test in test1.iter() {
+    fn test_azel_rect_conversion() {
+        azel_rect_conversion(&TEST_DATA_F_F, false, false);
+        azel_rect_conversion(&TEST_DATA_F_T, false, true);
+        azel_rect_conversion(&TEST_DATA_T_F, true, false);
+        azel_rect_conversion(&TEST_DATA_T_T, true, true);
+    }
+
+    fn azel_rect_conversion(test_data: &[[f64; 6]; 11], azccw: bool, elplsz: bool) {
+        for test in test_data.iter() {
             let azel = AzEl {
-                range: test[3] as SpiceDouble,
-                az: test[4].to_radians() as SpiceDouble,
-                el: test[5].to_radians() as SpiceDouble,
+                range: test[3],
+                az: test[4].to_radians(),
+                el: test[5].to_radians(),
             };
-            let rect = azel.to_rect(false, false);
-            println!(
-                "0: {:?}\t 1: {:?}\t 2: {:?}",
-                f64::abs(rect.0[0] - test[0]),
-                f64::abs(rect.0[1] - test[1]),
-                f64::abs(rect.0[2] - test[2])
-            );
-            // Passes at this epsilon but we have issues when trying to constrain further
-            let epsilon: f64 = 0.001;
-            assert!(f64::abs(rect.0[0] - test[0]) < epsilon);
-            assert!(f64::abs(rect.0[1] - test[1]) < epsilon);
-            assert!(f64::abs(rect.0[2] - test[2]) < epsilon);
+            let rect = Rectangular::from_azel(&azel, azccw, elplsz);
+            assert!((rect.0[0] - test[0]).abs() < EPSILON);
+            assert!((rect.0[1] - test[1]).abs() < EPSILON);
+            assert!((rect.0[2] - test[2]).abs() < EPSILON);
+            let azel_ = AzEl::from_rect(&rect, azccw, elplsz);
+            assert!((azel_.range - test[3]).abs() < EPSILON);
+            assert!((azel_.az - test[4].to_radians()).abs() < EPSILON);
+            assert!((azel_.el - test[5].to_radians()).abs() < EPSILON);
         }
     }
 }
