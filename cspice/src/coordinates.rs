@@ -15,6 +15,8 @@ pub struct State {
 
 impl From<[SpiceDouble; 6]> for State {
     fn from(state: [SpiceDouble; 6]) -> Self {
+        // Unsafety: This operation is safe as we're operating on owned memory,
+        // and making no unsafe type conversions.
         let (position, velocity): ([SpiceDouble; 3], [SpiceDouble; 3]) =
             unsafe { std::mem::transmute(state) };
         Self {

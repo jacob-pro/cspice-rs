@@ -144,13 +144,13 @@ mod tests {
     use crate::tests::load_test_data;
     const EPSILON: f64 = 1e-10;
     const ETS: [Et; 3] = [Et(0.0), Et(3600.0), Et(120000.0)];
-    // Test data generated via spiceypy using the above ephemeris times
     const LTS: [SpiceDouble; 3] = [
         1.3423106094958182f64,
         1.342693954033622f64,
         1.3519329044685606f64,
     ];
 
+    // Test data generated via spiceypy using the above ephemeris times
     fn gen_test_data() -> [State; 3] {
         [
             [
