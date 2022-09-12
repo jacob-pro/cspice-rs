@@ -1,16 +1,26 @@
 //! Functions for converting between different types of coordinates.
-use crate::spice_unsafe;
-use crate::vector::Vector3D;
+use crate::{spice_unsafe, vector::Vector3D};
 use cspice_sys::{azlrec_c, recazl_c, reclat_c, recrad_c, SpiceBoolean, SpiceDouble};
-use derive_more::{Deref, DerefMut, From, Into};
+use derive_more::{Deref, DerefMut, Into};
 
 /// Rectangular coordinates
-#[derive(Copy, Clone, Debug, Default, PartialEq, From, Into, Deref, DerefMut)]
-pub struct Rectangular(Vector3D);
+#[derive(Copy, Clone, Debug, Default, PartialEq, Into, Deref, DerefMut)]
+pub struct Rectangular(pub [SpiceDouble; 3]);
 
-impl From<[SpiceDouble; 3]> for Rectangular {
-    fn from(d: [SpiceDouble; 3]) -> Self {
-        Vector3D::from(d).into()
+#[derive(Copy, Clone, Debug, Default, PartialEq, Into)]
+pub struct State {
+    pub position: Rectangular,
+    pub velocity: Vector3D,
+}
+
+impl From<[SpiceDouble; 6]> for State {
+    fn from(state: [SpiceDouble; 6]) -> Self {
+        let (position, velocity): ([SpiceDouble; 3], [SpiceDouble; 3]) =
+            unsafe { std::mem::transmute(state) };
+        Self {
+            position: Rectangular(position),
+            velocity: Vector3D(velocity),
+        }
     }
 }
 

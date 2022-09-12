@@ -7,7 +7,7 @@ use derive_more::{Deref, DerefMut, From, Into};
 
 /// A 3D vector
 #[derive(Copy, Clone, Debug, Default, PartialEq, From, Into, Deref, DerefMut)]
-pub struct Vector3D([SpiceDouble; 3]);
+pub struct Vector3D(pub [SpiceDouble; 3]);
 
 impl Vector3D {
     /// Find the separation angle in radians between two double precision, 3-dimensional vectors.
