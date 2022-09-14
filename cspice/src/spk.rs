@@ -1,11 +1,30 @@
 //! Functions relating to the Spacecraft and Planet Ephemeris (SPK) subsystem of SPICE.
 use crate::common::AberrationCorrection;
-use crate::coordinates::{Rectangular, State};
+use crate::coordinates::Rectangular;
 use crate::error::get_last_error;
 use crate::string::StringParam;
 use crate::time::Et;
+use crate::vector::Vector3D;
 use crate::{spice_unsafe, Error};
 use cspice_sys::{spkez_c, spkezp_c, spkezr_c, spkpos_c, SpiceDouble};
+use derive_more::Into;
+
+/// A Cartesian state vector representing the position and velocity of the target body
+/// relative to the specified observer
+#[derive(Copy, Clone, Debug, Default, PartialEq, Into)]
+pub struct State {
+    pub position: Rectangular,
+    pub velocity: Vector3D,
+}
+
+impl From<[SpiceDouble; 6]> for State {
+    fn from(state: [SpiceDouble; 6]) -> Self {
+        Self {
+            position: Rectangular::from([state[0], state[1], state[2]]),
+            velocity: Vector3D([state[3], state[4], state[5]]),
+        }
+    }
+}
 
 /// Return the position of a target body relative to an observing body, optionally corrected for
 /// light time (planetary aberration) and stellar aberration.
@@ -23,7 +42,7 @@ where
     R: Into<StringParam<'r>>,
     O: Into<StringParam<'o>>,
 {
-    let mut position = Rectangular::default();
+    let mut position = [0.0f64; 3];
     let mut light_time = 0.0;
     spice_unsafe!({
         spkpos_c(
@@ -37,7 +56,7 @@ where
         )
     });
     get_last_error()?;
-    Ok((position, light_time))
+    Ok((position.into(), light_time))
 }
 
 /// Return the state (position and velocity) of a target body
@@ -87,7 +106,7 @@ pub fn easy_position<'r, R>(
 where
     R: Into<StringParam<'r>>,
 {
-    let mut position = Rectangular::default();
+    let mut position = [0.0f64; 3];
     let mut light_time = 0.0;
     spice_unsafe!({
         spkezp_c(
@@ -101,7 +120,7 @@ where
         )
     });
     get_last_error()?;
-    Ok((position, light_time))
+    Ok((position.into(), light_time))
 }
 
 /// Return the state (position and velocity) of a target body
@@ -190,9 +209,9 @@ mod tests {
         for i in 0..3 {
             let (pos, lt) =
                 position("moon", ETS[i], "J2000", AberrationCorrection::LT, "earth").unwrap();
-            for j in 0..3 {
-                assert!((pos[j] - test_data[i].position[j]).abs() < EPSILON);
-            }
+            assert!((pos.x - test_data[i].position.x).abs() < EPSILON);
+            assert!((pos.y - test_data[i].position.y).abs() < EPSILON);
+            assert!((pos.z - test_data[i].position.z).abs() < EPSILON);
             assert!((lt - LTS[i]).abs() < EPSILON);
         }
     }
@@ -204,8 +223,10 @@ mod tests {
         for i in 0..3 {
             let (state, lt) =
                 easy_reader(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
+            assert!((state.position.x - test_data[i].position.x).abs() < EPSILON);
+            assert!((state.position.y - test_data[i].position.y).abs() < EPSILON);
+            assert!((state.position.z - test_data[i].position.z).abs() < EPSILON);
             for j in 0..3 {
-                assert!((state.position[j] - test_data[i].position[j]).abs() < EPSILON);
                 assert!((state.velocity[j] - test_data[i].velocity[j]).abs() < EPSILON);
             }
             assert!((lt - LTS[i]).abs() < EPSILON);
@@ -219,9 +240,9 @@ mod tests {
         for i in 0..3 {
             let (pos, lt) =
                 easy_position(301, ETS[i], "J2000", AberrationCorrection::LT, 399).unwrap();
-            for j in 0..3 {
-                assert!((pos[j] - test_data[i].position[j]).abs() < EPSILON);
-            }
+            assert!((pos.x - test_data[i].position.x).abs() < EPSILON);
+            assert!((pos.y - test_data[i].position.y).abs() < EPSILON);
+            assert!((pos.z - test_data[i].position.z).abs() < EPSILON);
             assert!((lt - LTS[i]).abs() < EPSILON);
         }
     }
@@ -233,8 +254,10 @@ mod tests {
         for i in 0..3 {
             let (state, lt) =
                 easier_reader("moon", ETS[i], "J2000", AberrationCorrection::LT, "earth").unwrap();
+            assert!((state.position.x - test_data[i].position.x).abs() < EPSILON);
+            assert!((state.position.y - test_data[i].position.y).abs() < EPSILON);
+            assert!((state.position.z - test_data[i].position.z).abs() < EPSILON);
             for j in 0..3 {
-                assert!((state.position[j] - test_data[i].position[j]).abs() < EPSILON);
                 assert!((state.velocity[j] - test_data[i].velocity[j]).abs() < EPSILON);
             }
             assert!((lt - LTS[i]).abs() < EPSILON);
