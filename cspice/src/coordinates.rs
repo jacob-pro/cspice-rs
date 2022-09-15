@@ -1,11 +1,14 @@
 //! Functions for converting between different types of coordinates.
 use crate::spice_unsafe;
 use cspice_sys::{azlrec_c, recazl_c, reclat_c, recrad_c, SpiceBoolean, SpiceDouble};
-use derive_more::Into;
+use derive_more::{Deref, DerefMut, Into};
 
 /// Rectangular coordinates
-#[derive(Copy, Clone, Debug, Default, PartialEq, Into)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Into, Deref, DerefMut)]
 pub struct Rectangular {
+    #[deref]
+    #[deref_mut]
     pub x: SpiceDouble,
     pub y: SpiceDouble,
     pub z: SpiceDouble,
@@ -37,12 +40,11 @@ pub struct AzEl {
 
 impl AzEl {
     /// See [recazl_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recazl_c.html)
-    pub fn from_rect(rect: Rectangular, azccw: bool, elplsz: bool) -> AzEl {
+    pub fn from_rect(rect: Rectangular, azccw: bool, elplsz: bool) -> Self {
         let mut az_el = AzEl::default();
-        let rect: [SpiceDouble; 3] = rect.into();
         spice_unsafe!({
             recazl_c(
-                rect.as_ptr() as *mut SpiceDouble,
+                &*rect as *const SpiceDouble as *mut SpiceDouble,
                 azccw as SpiceBoolean,
                 elplsz as SpiceBoolean,
                 &mut az_el.range,
@@ -57,15 +59,15 @@ impl AzEl {
 impl Rectangular {
     /// See [azlrec_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/azlrec_c.html)
     pub fn from_azel(azel: AzEl, azccw: bool, elplsz: bool) -> Self {
-        let rect = [0.0f64; 3];
+        let mut rect = [0.0f64; 3];
         spice_unsafe!({
             azlrec_c(
-                azel.range as SpiceDouble,
-                azel.az as SpiceDouble,
-                azel.el as SpiceDouble,
+                azel.range,
+                azel.az,
+                azel.el,
                 azccw as SpiceBoolean,
                 elplsz as SpiceBoolean,
-                rect.as_ptr() as *mut SpiceDouble,
+                rect.as_mut_ptr(),
             )
         });
         rect.into()
@@ -84,10 +86,9 @@ impl From<Rectangular> for RaDec {
     /// See [recrad_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recrad_c.html).
     fn from(rect: Rectangular) -> Self {
         let mut ra_dec = RaDec::default();
-        let rect: [SpiceDouble; 3] = rect.into();
         spice_unsafe!({
             recrad_c(
-                rect.as_ptr() as *mut SpiceDouble,
+                &*rect as *const SpiceDouble as *mut SpiceDouble,
                 &mut ra_dec.range,
                 &mut ra_dec.ra,
                 &mut ra_dec.dec,
@@ -109,10 +110,9 @@ impl From<Rectangular> for Latitudinal {
     /// See [reclat_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/reclat_c.html).
     fn from(rect: Rectangular) -> Self {
         let mut lat = Latitudinal::default();
-        let rect: [SpiceDouble; 3] = rect.into();
         spice_unsafe!({
             reclat_c(
-                rect.as_ptr() as *mut SpiceDouble,
+                &*rect as *const SpiceDouble as *mut SpiceDouble,
                 &mut lat.radius,
                 &mut lat.longitude,
                 &mut lat.latitude,
