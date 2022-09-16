@@ -1,14 +1,12 @@
 //! Functions for converting between different types of coordinates.
 use crate::spice_unsafe;
 use cspice_sys::{azlrec_c, recazl_c, reclat_c, recrad_c, SpiceBoolean, SpiceDouble};
-use derive_more::{Deref, DerefMut, Into};
+use derive_more::Into;
 
 /// Rectangular coordinates
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Default, PartialEq, Into, Deref, DerefMut)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Into)]
 pub struct Rectangular {
-    #[deref]
-    #[deref_mut]
     pub x: SpiceDouble,
     pub y: SpiceDouble,
     pub z: SpiceDouble,
@@ -40,11 +38,11 @@ pub struct AzEl {
 
 impl AzEl {
     /// See [recazl_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recazl_c.html)
-    pub fn from_rect(rect: Rectangular, azccw: bool, elplsz: bool) -> Self {
+    pub fn from_rect(mut rect: Rectangular, azccw: bool, elplsz: bool) -> Self {
         let mut az_el = AzEl::default();
         spice_unsafe!({
             recazl_c(
-                &*rect as *const SpiceDouble as *mut SpiceDouble,
+                &mut rect.x as *mut SpiceDouble,
                 azccw as SpiceBoolean,
                 elplsz as SpiceBoolean,
                 &mut az_el.range,
@@ -84,11 +82,11 @@ pub struct RaDec {
 
 impl From<Rectangular> for RaDec {
     /// See [recrad_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recrad_c.html).
-    fn from(rect: Rectangular) -> Self {
+    fn from(mut rect: Rectangular) -> Self {
         let mut ra_dec = RaDec::default();
         spice_unsafe!({
             recrad_c(
-                &*rect as *const SpiceDouble as *mut SpiceDouble,
+                &mut rect.x as *mut SpiceDouble,
                 &mut ra_dec.range,
                 &mut ra_dec.ra,
                 &mut ra_dec.dec,
@@ -108,11 +106,11 @@ pub struct Latitudinal {
 
 impl From<Rectangular> for Latitudinal {
     /// See [reclat_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/reclat_c.html).
-    fn from(rect: Rectangular) -> Self {
+    fn from(mut rect: Rectangular) -> Self {
         let mut lat = Latitudinal::default();
         spice_unsafe!({
             reclat_c(
-                &*rect as *const SpiceDouble as *mut SpiceDouble,
+                &mut rect.x as *mut SpiceDouble,
                 &mut lat.radius,
                 &mut lat.longitude,
                 &mut lat.latitude,
