@@ -1,16 +1,30 @@
 //! Functions for converting between different types of coordinates.
 use crate::spice_unsafe;
-use crate::vector::Vector3D;
 use cspice_sys::{azlrec_c, recazl_c, reclat_c, recrad_c, SpiceBoolean, SpiceDouble};
-use derive_more::{Deref, DerefMut, From, Into};
+use derive_more::Into;
 
 /// Rectangular coordinates
-#[derive(Copy, Clone, Debug, Default, PartialEq, From, Into, Deref, DerefMut)]
-pub struct Rectangular(Vector3D);
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Into)]
+pub struct Rectangular {
+    pub x: SpiceDouble,
+    pub y: SpiceDouble,
+    pub z: SpiceDouble,
+}
 
 impl From<[SpiceDouble; 3]> for Rectangular {
-    fn from(d: [SpiceDouble; 3]) -> Self {
-        Vector3D::from(d).into()
+    fn from(rect: [SpiceDouble; 3]) -> Self {
+        Rectangular {
+            x: rect[0],
+            y: rect[1],
+            z: rect[2],
+        }
+    }
+}
+
+impl From<Rectangular> for [SpiceDouble; 3] {
+    fn from(rect: Rectangular) -> Self {
+        [rect.x, rect.y, rect.z]
     }
 }
 
@@ -24,11 +38,11 @@ pub struct AzEl {
 
 impl AzEl {
     /// See [recazl_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recazl_c.html)
-    pub fn from_rect(rect: &Rectangular, azccw: bool, elplsz: bool) -> AzEl {
+    pub fn from_rect(mut rect: Rectangular, azccw: bool, elplsz: bool) -> Self {
         let mut az_el = AzEl::default();
         spice_unsafe!({
             recazl_c(
-                rect.as_ptr() as *mut SpiceDouble,
+                &mut rect.x as *mut SpiceDouble,
                 azccw as SpiceBoolean,
                 elplsz as SpiceBoolean,
                 &mut az_el.range,
@@ -42,19 +56,19 @@ impl AzEl {
 
 impl Rectangular {
     /// See [azlrec_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/azlrec_c.html)
-    pub fn from_azel(azel: &AzEl, azccw: bool, elplsz: bool) -> Self {
-        let rect = Rectangular::default();
+    pub fn from_azel(azel: AzEl, azccw: bool, elplsz: bool) -> Self {
+        let mut rect = [0.0f64; 3];
         spice_unsafe!({
             azlrec_c(
-                azel.range as SpiceDouble,
-                azel.az as SpiceDouble,
-                azel.el as SpiceDouble,
+                azel.range,
+                azel.az,
+                azel.el,
                 azccw as SpiceBoolean,
                 elplsz as SpiceBoolean,
-                rect.as_ptr() as *mut SpiceDouble,
+                rect.as_mut_ptr(),
             )
         });
-        rect
+        rect.into()
     }
 }
 
@@ -68,11 +82,11 @@ pub struct RaDec {
 
 impl From<Rectangular> for RaDec {
     /// See [recrad_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/recrad_c.html).
-    fn from(rect: Rectangular) -> Self {
+    fn from(mut rect: Rectangular) -> Self {
         let mut ra_dec = RaDec::default();
         spice_unsafe!({
             recrad_c(
-                rect.as_ptr() as *mut SpiceDouble,
+                &mut rect.x as *mut SpiceDouble,
                 &mut ra_dec.range,
                 &mut ra_dec.ra,
                 &mut ra_dec.dec,
@@ -92,11 +106,11 @@ pub struct Latitudinal {
 
 impl From<Rectangular> for Latitudinal {
     /// See [reclat_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/reclat_c.html).
-    fn from(rect: Rectangular) -> Self {
+    fn from(mut rect: Rectangular) -> Self {
         let mut lat = Latitudinal::default();
         spice_unsafe!({
             reclat_c(
-                rect.0.as_ptr() as *mut SpiceDouble,
+                &mut rect.x as *mut SpiceDouble,
                 &mut lat.radius,
                 &mut lat.longitude,
                 &mut lat.latitude,
@@ -184,11 +198,11 @@ mod tests {
                 az: test[4].to_radians(),
                 el: test[5].to_radians(),
             };
-            let rect = Rectangular::from_azel(&azel, azccw, elplsz);
-            assert!((rect.0[0] - test[0]).abs() < EPSILON);
-            assert!((rect.0[1] - test[1]).abs() < EPSILON);
-            assert!((rect.0[2] - test[2]).abs() < EPSILON);
-            let azel_ = AzEl::from_rect(&rect, azccw, elplsz);
+            let rect = Rectangular::from_azel(azel, azccw, elplsz);
+            assert!((rect.x - test[0]).abs() < EPSILON);
+            assert!((rect.y - test[1]).abs() < EPSILON);
+            assert!((rect.z - test[2]).abs() < EPSILON);
+            let azel_ = AzEl::from_rect(rect, azccw, elplsz);
             assert!((azel_.range - test[3]).abs() < EPSILON);
             assert!((azel_.az - test[4].to_radians()).abs() < EPSILON);
             assert!((azel_.el - test[5].to_radians()).abs() < EPSILON);
