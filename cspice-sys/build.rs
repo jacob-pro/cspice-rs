@@ -20,18 +20,13 @@ fn main() {
 
     let cspice_dir = match env::var(CSPICE_DIR) {
         Ok(cspice_dir) => PathBuf::from(cspice_dir),
-        Err(_) => {
-            if let Some(path) = locate_cspice() {
-                println!("Found CSPICE at {:?}/lib/libcspice.a", path);
-                path
-            } else {
-                let downloaded = out_path.join("cspice");
-                if !downloaded.exists() {
-                    download_cspice(&out_path);
-                }
-                downloaded
+        Err(_) => locate_cspice().unwrap_or_else(|| {
+            let downloaded = out_path.join("cspice");
+            if !downloaded.exists() {
+                download_cspice(&out_path);
             }
-        }
+            downloaded
+        }),
     };
     if !cspice_dir.is_dir() {
         panic!(
@@ -89,8 +84,9 @@ fn locate_cspice() -> Option<PathBuf> {
     }
 }
 
-// Fetch CSPICE source from NAIF servers and extract to `OUT_DIR/cspice`
+// Fetch CSPICE source from NAIF servers and extract to `<out_dir>/cspice`
 fn download_cspice(out_dir: &Path) {
+    // Pick appropriate package to download
     let (platform, extension) = match env::consts::OS {
         "linux" => ("PC_Linux_GCC_64bit", "tar.Z"),
         "macos" => (
@@ -120,6 +116,7 @@ fn download_cspice(out_dir: &Path) {
         .unwrap();
     std::fs::write(download_target, body).expect("Failed to write archive file");
 
+    // Extract package based on platform
     match (env::consts::OS, extension) {
         ("linux" | "macos", "tar.Z") => {
             Command::new("gzip")
@@ -129,7 +126,7 @@ fn download_cspice(out_dir: &Path) {
                 .expect("Failed to extract with gzip");
             Command::new("tar")
                 .current_dir(&out_dir)
-                .args(["xfv", "cspice.tar"])
+                .args(["xf", "cspice.tar"])
                 .status()
                 .expect("Failed to extract with tar");
 
@@ -140,11 +137,11 @@ fn download_cspice(out_dir: &Path) {
             .unwrap();
         }
         ("windows", "zip") => {
-            Command::new("unzip")
+            Command::new("tar")
                 .current_dir(&out_dir)
-                .args(["cspice.zip"])
+                .args(["xf", "cspice.zip"])
                 .status()
-                .expect("Failed to extract with 'unzip'");
+                .expect("Failed to extract with tar");
         }
         _ => unreachable!(),
     }
