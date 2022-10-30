@@ -81,9 +81,10 @@ fn main() {
 
 // Check for CSPICE installation in system library folders
 fn locate_cspice() -> Option<PathBuf> {
-    // TODO: Check alternate install paths and other platforms
     match env::consts::OS {
-        "linux" if Path::new("/usr/lib/libcspice.a").exists() => Some(PathBuf::from("/usr")),
+        "linux" | "macos" if Path::new("/usr/lib/libcspice.a").exists() => {
+            Some(PathBuf::from("/usr"))
+        }
         _ => None,
     }
 }
@@ -92,8 +93,15 @@ fn locate_cspice() -> Option<PathBuf> {
 fn download_cspice(out_dir: &Path) {
     let (platform, extension) = match env::consts::OS {
         "linux" => ("PC_Linux_GCC_64bit", "tar.Z"),
-        "macos" => ("MacM1_OSX_clang_64bit", "tar.Z"), // UNTESTED
-        "windows" => ("PC_Windows_VisualC_64bit", "zip"), // UNTESTED
+        "macos" => (
+            if cfg!(target_arch = "arm") {
+                "MacM1_OSX_clang_64bit"
+            } else {
+                "MacIntel_OSX_AppleC_64bit"
+            },
+            "tar.Z",
+        ),
+        "windows" => ("PC_Windows_VisualC_64bit", "zip"),
         _ => {
             unimplemented!("Cannot fetch CSPICE source for this platform, please download manually")
         }
