@@ -90,21 +90,21 @@ fn locate_cspice() -> Option<PathBuf> {
 
 // Fetch CSPICE source from NAIF servers and extract to `OUT_DIR/cspice`
 fn download_cspice(out_dir: &Path) {
-    let platform = match env::consts::OS {
-        "linux" => "PC_Linux_GCC_64bit",
-        // "macos" => "MacM1_OSX_clang_64bit", // UNTESTED
-        // "windows" => "PC_Windows_VisualC_64bit", // UNTESTED
+    let (platform, extension) = match env::consts::OS {
+        "linux" => ("PC_Linux_GCC_64bit", "tar.Z"),
+        "macos" => ("MacM1_OSX_clang_64bit", "tar.Z"), // UNTESTED
+        "windows" => ("PC_Windows_VisualC_64bit", "zip"), // UNTESTED
         _ => {
             unimplemented!("Cannot fetch CSPICE source for this platform, please download manually")
         }
     };
 
     let url = format!(
-        "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/{}/packages/cspice.tar.Z",
-        platform
+        "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/{}/packages/cspice.{}",
+        platform, extension
     );
 
-    let download_target = out_dir.join("cspice.tar.Z");
+    let download_target = out_dir.join(format!("cspice.{}", extension));
 
     let body = reqwest::blocking::get(url)
         .expect("Failed to download CSPICE")
@@ -112,21 +112,34 @@ fn download_cspice(out_dir: &Path) {
         .unwrap();
     std::fs::write(download_target, body).expect("Failed to write archive file");
 
-    Command::new("gzip")
-        .current_dir(&out_dir)
-        .args(["-d", "cspice.tar.Z"])
-        .status()
-        .expect("Failed to extract with gzip");
-    Command::new("tar")
-        .current_dir(&out_dir)
-        .args(["xfv", "cspice.tar"])
-        .status()
-        .expect("Failed to extract with tar");
-    std::fs::rename(
-        out_dir.join("cspice/lib/cspice.a"),
-        out_dir.join("cspice/lib/libcspice.a"),
-    )
-    .unwrap();
+    match (env::consts::OS, extension) {
+        ("linux" | "macos", "tar.Z") => {
+            Command::new("gzip")
+                .current_dir(&out_dir)
+                .args(["-d", "cspice.tar.Z"])
+                .status()
+                .expect("Failed to extract with gzip");
+            Command::new("tar")
+                .current_dir(&out_dir)
+                .args(["xfv", "cspice.tar"])
+                .status()
+                .expect("Failed to extract with tar");
+
+            std::fs::rename(
+                out_dir.join("cspice/lib/cspice.a"),
+                out_dir.join("cspice/lib/libcspice.a"),
+            )
+            .unwrap();
+        }
+        ("windows", "zip") => {
+            Command::new("unzip")
+                .current_dir(&out_dir)
+                .args(["cspice.zip"])
+                .status()
+                .expect("Failed to extract with 'unzip'");
+        }
+        _ => unreachable!(),
+    }
 }
 
 // For docs.rs only we will bundle the headers
