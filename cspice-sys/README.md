@@ -12,17 +12,24 @@ Read the [official CSPICE documentation online](https://naif.jpl.nasa.gov/pub/na
 
 ## Installation
 
-You must first have installed the CSPICE toolkit by downloading and extracting the appropriate archive from 
+Firstly, you must have [Clang](https://releases.llvm.org/download.html) installed and on your `PATH` to be able to generate 
+the bindings.
+
+If you're on a Unix-like system and have CSPICE installed in the standard paths (`libcspice.a` in `/usr/lib` and headers in `/usr/include`),
+that version will be used by default.
+
+Alternatively, you can enable the `downloadcspice` feature on the crate to automatically download CSPICE from NAIF servers
+when this crate is built. Be aware that this will increase build time and require an internet connection on every clean build.
+
+You can also download CSPICE and tell this crate about where to find it manually:
+First install the CSPICE toolkit by downloading and extracting the appropriate archive from 
 [here](https://naif.jpl.nasa.gov/naif/toolkit_C.html).
 
-You must set the `CSPICE_DIR` environment variable to point to the extracted `cspice` directory (which should contain
+Then, set the `CSPICE_DIR` environment variable to point to the extracted `cspice` directory (which should contain
 the `include` and `lib` directories).
 
 **WARNING**: On Unix like systems you will likely need to rename `lib/cspice.a` to `lib/libcspice.a` so that it can be
 successfully linked.
-
-You must have [Clang](https://releases.llvm.org/download.html) installed and on your `PATH` to be able to generate 
-the bindings. 
 
 Also see the [GitHub workflow](../.github/workflows/rust.yml) for examples on how to set this up.
 
