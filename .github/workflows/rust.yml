@@ -13,11 +13,12 @@ jobs:
       run:
         shell: ${{ matrix.SHELL }}
     env:
-      CSPICE_DIR: '${{ github.workspace }}/cspice'
+      CSPICE_DIR: ${{ matrix.CSPICE_DIR }}
       CSPICE_URL: ${{ matrix.CSPICE_URL }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        download_cspice: [true, false]
         include:
           - os: ubuntu-latest
             CSPICE_URL: "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/PC_Linux_GCC_64bit/packages/cspice.tar.Z"
@@ -28,27 +29,30 @@ jobs:
           - os: windows-latest
             CSPICE_URL: "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/PC_Windows_VisualC_64bit/packages/cspice.zip"
             SHELL: powershell
+          - download_cspice: false
+            CSPICE_DIR: '${{ github.workspace }}/cspice'
+
     steps:
       - uses: actions/checkout@v2
 
       - name: Download CSPICE
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: ${{ matrix.os != 'windows-latest' && matrix.download_cspice }}
         run: wget ${{ matrix.CSPICE_URL }}
 
       - name: Download CSPICE (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' && matrix.download_cspice }}
         run: wget ${{ matrix.CSPICE_URL }} -outfile cspice.zip
 
       - name: Extract CSPICE
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: ${{ matrix.os != 'windows-latest' && matrix.download_cspice }}
         run: tar -zxvf "${CSPICE_URL##*/}"
 
       - name: Extract CSPICE (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' && matrix.download_cspice }}
         run: tar -xf cspice.zip
 
       - name: Fix libcspice name
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: ${{ matrix.os != 'windows-latest' && matrix.download_cspice }}
         run: mv $CSPICE_DIR/lib/cspice.a $CSPICE_DIR/lib/libcspice.a
 
       - name: Cargo Test
@@ -56,20 +60,6 @@ jobs:
 
       - name: Cargo Clippy Check
         run: cargo clippy --workspace -- -D warnings
-
-  build_with_download:
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: ${{ matrix.SHELL }}
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Cargo Test
-        run: cargo test --features downloadcspice -- --nocapture --test-threads=1
-
-      - name: Cargo Clippy Check
-        run: cargo clippy --features downloadcspice --workspace -- -D warnings
 
   check_style:
     runs-on: ubuntu-latest
