@@ -18,10 +18,23 @@ fn main() {
     println!("cargo:rerun-if-env-changed={}", CSPICE_CLANG_TARGET);
     println!("cargo:rerun-if-env-changed={}", CSPICE_CLANG_ROOT);
 
-    let cspice_dir = match env::var(CSPICE_DIR) {
-        Ok(cspice_dir) => PathBuf::from(cspice_dir),
-        Err(_) => panic!("Unable to read {CSPICE_DIR} environment variable. It must be set to the directory of your CSPICE installation.")
-    };
+    let cspice_dir = env::var(CSPICE_DIR)
+        .ok()
+        .map(PathBuf::from)
+        .or_else(locate_cspice);
+
+    #[cfg(feature = "downloadcspice")]
+    let cspice_dir = cspice_dir.or_else(|| {
+        let downloaded = out_path.join("cspice");
+        if !downloaded.exists() {
+            download_cspice(&out_path);
+        }
+        Some(downloaded)
+    });
+
+    let cspice_dir =
+		cspice_dir.expect("Cannot build: CSPICE_DIR environment variable was not provided, no CSPICE install was found, and feature \"downloadcspice\" is disabled.");
+
     if !cspice_dir.is_dir() {
         panic!(
             "Provided {CSPICE_DIR} ({}) is not a directory",
@@ -60,6 +73,80 @@ fn main() {
         cspice_dir.join("lib").display()
     );
     println!("cargo:rustc-link-lib=static=cspice");
+}
+
+// Check for CSPICE installation in system library folders
+fn locate_cspice() -> Option<PathBuf> {
+    match env::consts::OS {
+        "linux" | "macos" if Path::new("/usr/lib/libcspice.a").exists() => {
+            Some(PathBuf::from("/usr"))
+        }
+        _ => None,
+    }
+}
+
+// Fetch CSPICE source from NAIF servers and extract to `<out_dir>/cspice`
+#[cfg(feature = "downloadcspice")]
+fn download_cspice(out_dir: &Path) {
+    // Pick appropriate package to download
+    let (platform, extension) = match env::consts::OS {
+        "linux" => ("PC_Linux_GCC_64bit", "tar.Z"),
+        "macos" => (
+            if cfg!(target_arch = "arm") {
+                "MacM1_OSX_clang_64bit"
+            } else {
+                "MacIntel_OSX_AppleC_64bit"
+            },
+            "tar.Z",
+        ),
+        "windows" => ("PC_Windows_VisualC_64bit", "zip"),
+        _ => {
+            unimplemented!("Cannot fetch CSPICE source for this platform, please download manually")
+        }
+    };
+
+    let url = format!(
+        "https://naif.jpl.nasa.gov/pub/naif/toolkit//C/{}/packages/cspice.{}",
+        platform, extension
+    );
+
+    let download_target = out_dir.join(format!("cspice.{}", extension));
+
+    let body = reqwest::blocking::get(url)
+        .expect("Failed to download CSPICE")
+        .bytes()
+        .unwrap();
+    std::fs::write(download_target, body).expect("Failed to write archive file");
+
+    // Extract package based on platform
+    match (env::consts::OS, extension) {
+        ("linux" | "macos", "tar.Z") => {
+            Command::new("gzip")
+                .current_dir(&out_dir)
+                .args(["-d", "cspice.tar.Z"])
+                .status()
+                .expect("Failed to extract with gzip");
+            Command::new("tar")
+                .current_dir(&out_dir)
+                .args(["xf", "cspice.tar"])
+                .status()
+                .expect("Failed to extract with tar");
+
+            std::fs::rename(
+                out_dir.join("cspice/lib/cspice.a"),
+                out_dir.join("cspice/lib/libcspice.a"),
+            )
+            .unwrap();
+        }
+        ("windows", "zip") => {
+            Command::new("tar")
+                .current_dir(&out_dir)
+                .args(["xf", "cspice.zip"])
+                .status()
+                .expect("Failed to extract with tar");
+        }
+        _ => unreachable!(),
+    }
 }
 
 // For docs.rs only we will bundle the headers
