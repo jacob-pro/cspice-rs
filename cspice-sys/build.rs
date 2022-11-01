@@ -18,16 +18,23 @@ fn main() {
     println!("cargo:rerun-if-env-changed={}", CSPICE_CLANG_TARGET);
     println!("cargo:rerun-if-env-changed={}", CSPICE_CLANG_ROOT);
 
-    let cspice_dir = match env::var(CSPICE_DIR) {
-        Ok(cspice_dir) => PathBuf::from(cspice_dir),
-        Err(_) => locate_cspice().unwrap_or_else(|| {
-            let downloaded = out_path.join("cspice");
-            if !downloaded.exists() {
-                download_cspice(&out_path);
-            }
-            downloaded
-        }),
-    };
+    let cspice_dir = env::var(CSPICE_DIR)
+        .ok()
+        .map(PathBuf::from)
+        .or_else(locate_cspice);
+
+    #[cfg(feature = "downloadcspice")]
+    let cspice_dir = cspice_dir.or_else(|| {
+        let downloaded = out_path.join("cspice");
+        if !downloaded.exists() {
+            download_cspice(&out_path);
+        }
+        Some(downloaded)
+    });
+
+    let cspice_dir =
+		cspice_dir.expect("Cannot build: CSPICE_DIR environment variable was not provided, no CSPICE install was found, and feature \"downloadcspice\" is disabled.");
+
     if !cspice_dir.is_dir() {
         panic!(
             "Provided {CSPICE_DIR} ({}) is not a directory",
@@ -36,12 +43,6 @@ fn main() {
     }
 
     let include_dir = cspice_dir.join("include");
-
-    assert!(
-        include_dir.join("SpiceUsr.h").exists(),
-        "CSPICE header files not found in {}",
-        include_dir.display()
-    );
 
     let mut clang_args = vec![];
     if let Ok(target) = env::var(CSPICE_CLANG_TARGET) {
@@ -85,6 +86,7 @@ fn locate_cspice() -> Option<PathBuf> {
 }
 
 // Fetch CSPICE source from NAIF servers and extract to `<out_dir>/cspice`
+#[cfg(feature = "downloadcspice")]
 fn download_cspice(out_dir: &Path) {
     // Pick appropriate package to download
     let (platform, extension) = match env::consts::OS {

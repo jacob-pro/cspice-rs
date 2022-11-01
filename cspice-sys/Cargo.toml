@@ -9,8 +9,11 @@ authors = ["Jacob Halsey <jacob@jhalsey.com>"]
 homepage = "https://github.com/jacob-pro/cspice-rs/tree/master/cspice-sys"
 repository = "https://github.com/jacob-pro/cspice-rs"
 
+[features]
+downloadcspice = ["dep:reqwest"]
+
 [dependencies]
 
 [build-dependencies]
 bindgen = "0.60.1"
-reqwest = { version = "0.11.12", features = ["blocking"] }
+reqwest = { version = "0.11.12", features = ["blocking"], optional = true }
