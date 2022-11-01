@@ -52,11 +52,24 @@ jobs:
         run: mv $CSPICE_DIR/lib/cspice.a $CSPICE_DIR/lib/libcspice.a
 
       - name: Cargo Test
-        run: cargo test --all-features -- --nocapture --test-threads=1
+        run: cargo test -- --nocapture --test-threads=1
 
       - name: Cargo Clippy Check
-        run: cargo clippy --all-features --workspace -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
+  build_with_download:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.SHELL }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cargo Test
+        run: cargo test --features downloadcspice -- --nocapture --test-threads=1
+
+      - name: Cargo Clippy Check
+        run: cargo clippy --features downloadcspice --workspace -- -D warnings
 
   check_style:
     runs-on: ubuntu-latest
