@@ -5,7 +5,7 @@ use crate::common::AberrationCorrection;
 use crate::error::get_last_error;
 use crate::string::StaticSpiceStr;
 use crate::string::{static_spice_str, StringParam};
-use crate::{spice_unsafe, Error};
+use crate::{with_spice_lock_or_panic, Error};
 use cspice_sys::{gfsep_c, SpiceChar, SpiceDouble, SpiceInt};
 
 #[derive(Copy, Clone, Debug)]
@@ -79,25 +79,26 @@ where
     F2: Into<StringParam<'f2>>,
     O: Into<StringParam<'o>>,
 {
-    spice_unsafe!({
-        gfsep_c(
-            body1.into().as_mut_ptr(),
-            shape1.as_spice_char(),
-            frame1.into().as_mut_ptr(),
-            body2.into().as_mut_ptr(),
-            shape2.as_spice_char(),
-            frame2.into().as_mut_ptr(),
-            aberration_correction.as_spice_char(),
-            observing_body.into().as_mut_ptr(),
-            relational_operator.as_spice_char(),
-            refval,
-            adjust,
-            step_size,
-            intervals as SpiceInt,
-            confine.as_mut_cell(),
-            output.as_mut_cell(),
-        );
-    });
-    get_last_error()?;
-    Ok(())
+    with_spice_lock_or_panic(|| {
+        unsafe {
+            gfsep_c(
+                body1.into().as_mut_ptr(),
+                shape1.as_spice_char(),
+                frame1.into().as_mut_ptr(),
+                body2.into().as_mut_ptr(),
+                shape2.as_spice_char(),
+                frame2.into().as_mut_ptr(),
+                aberration_correction.as_spice_char(),
+                observing_body.into().as_mut_ptr(),
+                relational_operator.as_spice_char(),
+                refval,
+                adjust,
+                step_size,
+                intervals as SpiceInt,
+                confine.as_mut_cell(),
+                output.as_mut_cell(),
+            );
+        };
+        get_last_error()
+    })
 }

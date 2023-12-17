@@ -22,7 +22,7 @@ impl Debug for SpiceString {
 
 impl Display for SpiceString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&*self.as_str())
+        f.write_str(&self.as_str())
     }
 }
 
@@ -117,7 +117,7 @@ impl Debug for SpiceStr<'_> {
 
 impl Display for SpiceStr<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&*self.as_str())
+        f.write_str(&self.as_str())
     }
 }
 
