@@ -1,10 +1,10 @@
 use crate::error::get_last_error;
-use crate::spice_unsafe;
 use crate::string::{SpiceStr, SpiceString};
 use crate::time::calendar::Calendar;
 use crate::time::date_time::DateTime;
 use crate::time::system::System;
 use crate::time::Et;
+use crate::with_spice_lock_or_panic;
 use cspice_sys::{timout_c, SpiceDouble};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
@@ -46,15 +46,17 @@ impl<S: System> From<Et> for JulianDate<S> {
     fn from(et: Et) -> Self {
         let pictur = SpiceString::from(format!("JULIAND.############# ::{}", S::system_name()));
         let mut buffer = [0; 40];
-        spice_unsafe!({
-            timout_c(
-                et.0,
-                pictur.as_mut_ptr(),
-                buffer.len() as i32,
-                buffer.as_mut_ptr(),
-            );
+        with_spice_lock_or_panic(|| {
+            unsafe {
+                timout_c(
+                    et.0,
+                    pictur.as_mut_ptr(),
+                    buffer.len() as i32,
+                    buffer.as_mut_ptr(),
+                )
+            };
+            get_last_error().unwrap();
         });
-        get_last_error().unwrap();
         Self::new(SpiceStr::from_buffer(&buffer).as_str().parse().unwrap())
     }
 }

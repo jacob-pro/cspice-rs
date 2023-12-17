@@ -11,7 +11,7 @@ pub use julian_date::JulianDate;
 use crate::common::{CALENDAR, SET};
 use crate::error::get_last_error;
 use crate::string::{SpiceString, StringParam};
-use crate::{spice_unsafe, Error};
+use crate::{with_spice_lock_or_panic, Error};
 use calendar::Calendar;
 use cspice_sys::{str2et_c, timdef_c, timout_c, SpiceDouble, SpiceInt};
 use derive_more::{From, Into};
@@ -43,15 +43,17 @@ impl Et {
         out_length: usize,
     ) -> Result<String, Error> {
         let mut buffer = vec![0; out_length];
-        spice_unsafe!({
-            timout_c(
-                self.0,
-                pictur.into().as_mut_ptr(),
-                buffer.len() as SpiceInt,
-                buffer.as_mut_ptr(),
-            );
-        });
-        get_last_error()?;
+        with_spice_lock_or_panic(|| {
+            unsafe {
+                timout_c(
+                    self.0,
+                    pictur.into().as_mut_ptr(),
+                    buffer.len() as SpiceInt,
+                    buffer.as_mut_ptr(),
+                );
+            };
+            get_last_error()
+        })?;
         Ok(SpiceString::from_buffer(buffer).to_string())
     }
 
@@ -60,12 +62,14 @@ impl Et {
     /// See [str2et_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/str2et_c.html)
     #[inline]
     pub fn from_string<'p, P: Into<StringParam<'p>>>(string: P) -> Result<Self, Error> {
-        let mut output = 0f64;
-        spice_unsafe!({
-            str2et_c(string.into().as_mut_ptr(), &mut output);
-        });
-        get_last_error()?;
-        Ok(Self(output))
+        with_spice_lock_or_panic(|| {
+            let mut output = 0f64;
+            unsafe {
+                str2et_c(string.into().as_mut_ptr(), &mut output);
+            };
+            get_last_error()?;
+            Ok(Self(output))
+        })
     }
 }
 
@@ -75,15 +79,17 @@ impl Et {
 #[inline]
 pub fn set_default_calendar<C: Calendar>() {
     let name = SpiceString::from(C::name());
-    spice_unsafe!({
-        timdef_c(
-            SET.as_mut_ptr(),
-            CALENDAR.as_mut_ptr(),
-            0,
-            name.as_mut_ptr(),
-        );
-    });
-    get_last_error().unwrap();
+    with_spice_lock_or_panic(|| {
+        unsafe {
+            timdef_c(
+                SET.as_mut_ptr(),
+                CALENDAR.as_mut_ptr(),
+                0,
+                name.as_mut_ptr(),
+            );
+        };
+        get_last_error().unwrap();
+    })
 }
 
 #[cfg(test)]

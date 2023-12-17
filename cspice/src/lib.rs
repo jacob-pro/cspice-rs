@@ -9,62 +9,73 @@ pub mod string;
 pub mod time;
 pub mod vector;
 
-pub use crate::error::Error;
-
 use crate::error::set_error_defaults;
+pub use crate::error::Error;
 use crate::string::SpiceString;
-use once_cell::sync::OnceCell;
-use std::cell::Cell;
+use parking_lot::{ReentrantMutex, ReentrantMutexGuard};
+use std::cell::RefCell;
 use std::fmt::Debug;
-use std::thread;
-use std::thread::Thread;
+use std::ops::Deref;
 use thiserror::Error;
 
-/// Wraps an unsafe SPICE function call.
-///
-/// First checks that it is safe for the current thread to access SPICE, otherwise panics.
-macro_rules! spice_unsafe {
-    ($l:block) => {{
-        if let Err(e) = crate::try_acquire_thread() {
+// Boolean indicates if library has been initialised
+static SPICE_LOCK: ReentrantMutex<RefCell<bool>> = ReentrantMutex::new(RefCell::new(false));
+
+pub(crate) fn with_spice_lock_or_panic<R, F>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    match try_with_spice_lock(f) {
+        Ok(k) => k,
+        Err(e) => {
             panic!("{e}")
         }
-        unsafe { $l }
-    }};
-}
-pub(crate) use spice_unsafe;
-
-/// The SPICE library [is not thread safe](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe).
-/// This function checks if it is safe for the current thread to call SPICE functions. SPICE
-/// will be locked to the first thread that calls this function.
-pub fn try_acquire_thread() -> Result<(), SpiceThreadError> {
-    static SPICE_THREAD_ID: OnceCell<Thread> = OnceCell::new();
-    thread_local! {
-        static CACHE: Cell<bool> = Cell::new(false);
     }
-    CACHE.with(|cache| {
-        if cache.get() {
-            return Ok(());
-        }
-        match SPICE_THREAD_ID.set(thread::current()) {
-            Ok(_) => {
-                cache.set(true);
-                set_error_defaults();
-                Ok(())
-            }
-            Err(e) => Err(SpiceThreadError(e)),
-        }
-    })
 }
 
-/// Error returned from [try_acquire_thread()].
+/// The SPICE library [is not thread safe](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe.).
+/// This function can be used to synchronise calls to SPICE functions.
+/// All safe functions in this library use this lock internally.
+pub fn try_with_spice_lock<R, F>(f: F) -> Result<R, SpiceLockError>
+where
+    F: FnOnce() -> R,
+{
+    let guard = SPICE_LOCK.try_lock().ok_or(SpiceLockError)?;
+    initialise_library(&guard);
+    Ok(f())
+}
+
+/// The SPICE library [is not thread safe](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/problems.html#Problem:%20SPICE%20code%20is%20not%20thread%20safe.).
+/// This function can be used to synchronise calls to SPICE functions.
+/// All safe functions in this library use this lock internally.
+/// The lock is reentrant.
+pub fn with_spice_lock<R, F>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    let guard = SPICE_LOCK.lock();
+    initialise_library(&guard);
+    f()
+}
+
+fn initialise_library(guard: &ReentrantMutexGuard<'static, RefCell<bool>>) {
+    if !guard.borrow().deref() {
+        *guard.borrow_mut() = true;
+        set_error_defaults();
+    }
+}
+
+#[derive(Debug)]
+pub struct SpiceLock(ReentrantMutexGuard<'static, RefCell<bool>>);
+
+/// Error returned from [try_with_spice_lock()].
 #[derive(Debug, Clone, Error)]
-#[cfg_attr(not(test), error("SPICE is already in use by another thread"))]
-#[cfg_attr(test, error("SPICE is already in use by another thread. When running unit tests you will likely need to use the `--test-threads=1` argument"))]
-pub struct SpiceThreadError(pub Thread);
+#[cfg_attr(not(test), error("SPICE is already in use by another thread. If multi-threaded use is intentional wrap the call using `with_spice_lock()`."))]
+#[cfg_attr(test, error("SPICE is already in use by another thread. When running unit tests you will likely need to use the `--test-threads=1` argument."))]
+pub struct SpiceLockError;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::data::furnish;
     use std::path::PathBuf;
     use std::sync::Once;
@@ -76,21 +87,5 @@ mod tests {
             let data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test_data");
             furnish(data_dir.join("testkernel.txt").to_string_lossy()).unwrap();
         });
-    }
-
-    #[test]
-    fn test_acquire_thread() {
-        try_acquire_thread().unwrap();
-        try_acquire_thread().unwrap();
-    }
-
-    #[test]
-    fn test_acquire_thread_different_thread() {
-        try_acquire_thread().unwrap();
-        std::thread::spawn(|| {
-            try_acquire_thread().expect_err("Should be unable to use on another thread")
-        })
-        .join()
-        .unwrap();
     }
 }

@@ -5,7 +5,7 @@ use crate::error::get_last_error;
 use crate::string::StringParam;
 use crate::time::Et;
 use crate::vector::Vector3D;
-use crate::{spice_unsafe, Error};
+use crate::{with_spice_lock_or_panic, Error};
 use cspice_sys::{spkez_c, spkezp_c, spkezr_c, spkpos_c, SpiceDouble};
 use derive_more::Into;
 
@@ -42,21 +42,23 @@ where
     R: Into<StringParam<'r>>,
     O: Into<StringParam<'o>>,
 {
-    let mut position = [0.0f64; 3];
-    let mut light_time = 0.0;
-    spice_unsafe!({
-        spkpos_c(
-            target.into().as_mut_ptr(),
-            et.0,
-            reference_frame.into().as_mut_ptr(),
-            aberration_correction.as_spice_char(),
-            observing_body.into().as_mut_ptr(),
-            position.as_mut_ptr(),
-            &mut light_time,
-        )
-    });
-    get_last_error()?;
-    Ok((position.into(), light_time))
+    with_spice_lock_or_panic(|| {
+        let mut position = [0.0f64; 3];
+        let mut light_time = 0.0;
+        unsafe {
+            spkpos_c(
+                target.into().as_mut_ptr(),
+                et.0,
+                reference_frame.into().as_mut_ptr(),
+                aberration_correction.as_spice_char(),
+                observing_body.into().as_mut_ptr(),
+                position.as_mut_ptr(),
+                &mut light_time,
+            )
+        };
+        get_last_error()?;
+        Ok((position.into(), light_time))
+    })
 }
 
 /// Return the state (position and velocity) of a target body
@@ -74,21 +76,23 @@ pub fn easy_reader<'r, R>(
 where
     R: Into<StringParam<'r>>,
 {
-    let mut pos_vel: [SpiceDouble; 6] = [0.0; 6];
-    let mut light_time = 0.0;
-    spice_unsafe!({
-        spkez_c(
-            target,
-            et.0,
-            reference_frame.into().as_mut_ptr(),
-            aberration_correction.as_spice_char(),
-            observing_body,
-            pos_vel.as_mut_ptr(),
-            &mut light_time,
-        )
-    });
-    get_last_error()?;
-    Ok((State::from(pos_vel), light_time))
+    with_spice_lock_or_panic(|| {
+        let mut pos_vel: [SpiceDouble; 6] = [0.0; 6];
+        let mut light_time = 0.0;
+        unsafe {
+            spkez_c(
+                target,
+                et.0,
+                reference_frame.into().as_mut_ptr(),
+                aberration_correction.as_spice_char(),
+                observing_body,
+                pos_vel.as_mut_ptr(),
+                &mut light_time,
+            )
+        };
+        get_last_error()?;
+        Ok((State::from(pos_vel), light_time))
+    })
 }
 
 /// Return the position of a target body relative to an observing
@@ -106,21 +110,23 @@ pub fn easy_position<'r, R>(
 where
     R: Into<StringParam<'r>>,
 {
-    let mut position = [0.0f64; 3];
-    let mut light_time = 0.0;
-    spice_unsafe!({
-        spkezp_c(
-            target,
-            et.0,
-            reference_frame.into().as_mut_ptr(),
-            aberration_correction.as_spice_char(),
-            observing_body,
-            position.as_mut_ptr(),
-            &mut light_time,
-        )
-    });
-    get_last_error()?;
-    Ok((position.into(), light_time))
+    with_spice_lock_or_panic(|| {
+        let mut position = [0.0f64; 3];
+        let mut light_time = 0.0;
+        unsafe {
+            spkezp_c(
+                target,
+                et.0,
+                reference_frame.into().as_mut_ptr(),
+                aberration_correction.as_spice_char(),
+                observing_body,
+                position.as_mut_ptr(),
+                &mut light_time,
+            )
+        };
+        get_last_error()?;
+        Ok((position.into(), light_time))
+    })
 }
 
 /// Return the state (position and velocity) of a target body
@@ -140,21 +146,23 @@ where
     R: Into<StringParam<'r>>,
     O: Into<StringParam<'o>>,
 {
-    let mut pos_vel = [0.0f64; 6];
-    let mut light_time = 0.0;
-    spice_unsafe!({
-        spkezr_c(
-            target.into().as_mut_ptr(),
-            et.0,
-            reference_frame.into().as_mut_ptr(),
-            aberration_correction.as_spice_char(),
-            observing_body.into().as_mut_ptr(),
-            pos_vel.as_mut_ptr(),
-            &mut light_time,
-        )
-    });
-    get_last_error()?;
-    Ok((State::from(pos_vel), light_time))
+    with_spice_lock_or_panic(|| {
+        let mut pos_vel = [0.0f64; 6];
+        let mut light_time = 0.0;
+        unsafe {
+            spkezr_c(
+                target.into().as_mut_ptr(),
+                et.0,
+                reference_frame.into().as_mut_ptr(),
+                aberration_correction.as_spice_char(),
+                observing_body.into().as_mut_ptr(),
+                pos_vel.as_mut_ptr(),
+                &mut light_time,
+            )
+        };
+        get_last_error()?;
+        Ok((State::from(pos_vel), light_time))
+    })
 }
 
 #[cfg(test)]

@@ -122,17 +122,17 @@ fn download_cspice(out_dir: &Path) {
     match (env::consts::OS, extension) {
         ("linux" | "macos", "tar.Z") => {
             Command::new("gzip")
-                .current_dir(&out_dir)
+                .current_dir(out_dir)
                 .args(["-d", "cspice.tar.Z"])
                 .status()
                 .expect("Failed to extract with gzip");
             Command::new("tar")
-                .current_dir(&out_dir)
+                .current_dir(out_dir)
                 .args(["xf", "cspice.tar"])
                 .status()
                 .expect("Failed to extract with tar");
 
-            std::fs::rename(
+            fs::rename(
                 out_dir.join("cspice/lib/cspice.a"),
                 out_dir.join("cspice/lib/libcspice.a"),
             )
@@ -140,7 +140,7 @@ fn download_cspice(out_dir: &Path) {
         }
         ("windows", "zip") => {
             Command::new("tar")
-                .current_dir(&out_dir)
+                .current_dir(out_dir)
                 .args(["xf", "cspice.zip"])
                 .status()
                 .expect("Failed to extract with tar");

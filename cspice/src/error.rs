@@ -1,7 +1,7 @@
 //! Functions relating to error handling.
 use crate::common::{GET, SET};
-use crate::spice_unsafe;
 use crate::string::{SpiceStr, SpiceString};
+use crate::with_spice_lock_or_panic;
 use cspice_sys::{
     erract_c, errdev_c, failed_c, getmsg_c, qcktrc_c, reset_c, SpiceInt, SPICE_ERROR_LMSGLN,
     SPICE_ERROR_SMSGLN, SPICE_ERROR_TRCLEN, SPICE_ERROR_XMSGLN,
@@ -45,45 +45,47 @@ pub enum ErrorDevice {
 /// For context see [CSPICE Error Handling](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/error.html#Testing%20the%20Error%20Status).
 #[inline]
 pub fn get_last_error() -> Result<(), Error> {
-    spice_unsafe!({
-        if failed_c() == 0 {
-            return Ok(());
+    with_spice_lock_or_panic(|| {
+        unsafe {
+            if failed_c() == 0 {
+                return Ok(());
+            }
+
+            // Gather error info
+            let option = SpiceString::from("SHORT");
+            let mut short_message = [0; SPICE_ERROR_SMSGLN as usize];
+            getmsg_c(
+                option.as_mut_ptr(),
+                short_message.len() as SpiceInt,
+                short_message.as_mut_ptr(),
+            );
+            let option = SpiceString::from("EXPLAIN");
+            let mut explanation = [0; SPICE_ERROR_XMSGLN as usize];
+            getmsg_c(
+                option.as_mut_ptr(),
+                explanation.len() as SpiceInt,
+                explanation.as_mut_ptr(),
+            );
+            let option = SpiceString::from("LONG");
+            let mut long_message = [0; SPICE_ERROR_LMSGLN as usize];
+            getmsg_c(
+                option.as_mut_ptr(),
+                long_message.len() as SpiceInt,
+                long_message.as_mut_ptr(),
+            );
+            let mut traceback = [0; SPICE_ERROR_TRCLEN as usize];
+            qcktrc_c(traceback.len() as SpiceInt, traceback.as_mut_ptr());
+
+            // Reset last error
+            reset_c();
+
+            Err(Error {
+                short_message: SpiceStr::from_buffer(&short_message).to_string(),
+                explanation: SpiceStr::from_buffer(&explanation).to_string(),
+                long_message: SpiceStr::from_buffer(&long_message).to_string(),
+                traceback: SpiceStr::from_buffer(&traceback).to_string(),
+            })
         }
-
-        // Gather error info
-        let option = SpiceString::from("SHORT");
-        let mut short_message = [0; SPICE_ERROR_SMSGLN as usize];
-        getmsg_c(
-            option.as_mut_ptr(),
-            short_message.len() as SpiceInt,
-            short_message.as_mut_ptr(),
-        );
-        let option = SpiceString::from("EXPLAIN");
-        let mut explanation = [0; SPICE_ERROR_XMSGLN as usize];
-        getmsg_c(
-            option.as_mut_ptr(),
-            explanation.len() as SpiceInt,
-            explanation.as_mut_ptr(),
-        );
-        let option = SpiceString::from("LONG");
-        let mut long_message = [0; SPICE_ERROR_LMSGLN as usize];
-        getmsg_c(
-            option.as_mut_ptr(),
-            long_message.len() as SpiceInt,
-            long_message.as_mut_ptr(),
-        );
-        let mut traceback = [0; SPICE_ERROR_TRCLEN as usize];
-        qcktrc_c(traceback.len() as SpiceInt, traceback.as_mut_ptr());
-
-        // Reset last error
-        reset_c();
-
-        Err(Error {
-            short_message: SpiceStr::from_buffer(&short_message).to_string(),
-            explanation: SpiceStr::from_buffer(&explanation).to_string(),
-            long_message: SpiceStr::from_buffer(&long_message).to_string(),
-            traceback: SpiceStr::from_buffer(&traceback).to_string(),
-        })
     })
 }
 
@@ -92,10 +94,10 @@ pub fn get_last_error() -> Result<(), Error> {
 /// See [erract_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html).
 pub fn set_error_action(action: ErrorAction) -> Result<(), Error> {
     let action = SpiceString::from(serde_plain::to_string(&action).unwrap());
-    spice_unsafe!({
-        erract_c(SET.as_mut_ptr(), 0, action.as_mut_ptr());
-    });
-    get_last_error()
+    with_spice_lock_or_panic(|| {
+        unsafe { erract_c(SET.as_mut_ptr(), 0, action.as_mut_ptr()) };
+        get_last_error()
+    })
 }
 
 /// Get the action when an error occurs in a SPICE function.
@@ -103,16 +105,18 @@ pub fn set_error_action(action: ErrorAction) -> Result<(), Error> {
 /// See [erract_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/erract_c.html).
 pub fn get_error_action() -> Result<ErrorAction, Error> {
     let mut buffer = [0; 20];
-    spice_unsafe!({
-        erract_c(
-            GET.as_mut_ptr(),
-            buffer.len() as SpiceInt,
-            buffer.as_mut_ptr(),
-        );
-    });
-    get_last_error()?;
+    with_spice_lock_or_panic(|| {
+        unsafe {
+            erract_c(
+                GET.as_mut_ptr(),
+                buffer.len() as SpiceInt,
+                buffer.as_mut_ptr(),
+            )
+        };
+        get_last_error()
+    })?;
     let action = SpiceStr::from_buffer(&buffer);
-    Ok(serde_plain::from_str(&*action.as_str()).unwrap())
+    Ok(serde_plain::from_str(&action.as_str()).unwrap())
 }
 
 /// Set Error Output Device.
@@ -124,10 +128,10 @@ pub fn set_error_output_device(device: ErrorDevice) -> Result<(), Error> {
         ErrorDevice::Null => SpiceString::from("NULL"),
         ErrorDevice::Filename(filename) => SpiceString::from(filename),
     };
-    spice_unsafe!({
-        errdev_c(SET.as_mut_ptr(), 0, device.as_mut_ptr());
-    });
-    get_last_error()
+    with_spice_lock_or_panic(|| {
+        unsafe { errdev_c(SET.as_mut_ptr(), 0, device.as_mut_ptr()) };
+        get_last_error()
+    })
 }
 
 /// Get Error Output Device.
@@ -135,14 +139,16 @@ pub fn set_error_output_device(device: ErrorDevice) -> Result<(), Error> {
 /// See [errdev_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/errdev_c.html).
 pub fn get_error_output_device() -> Result<ErrorDevice, Error> {
     let mut buffer = [0; FILEN as usize];
-    spice_unsafe!({
-        errdev_c(
-            GET.as_mut_ptr(),
-            buffer.len() as SpiceInt,
-            buffer.as_mut_ptr(),
-        );
-    });
-    get_last_error()?;
+    with_spice_lock_or_panic(|| {
+        unsafe {
+            errdev_c(
+                GET.as_mut_ptr(),
+                buffer.len() as SpiceInt,
+                buffer.as_mut_ptr(),
+            );
+        };
+        get_last_error()
+    })?;
     let action = SpiceStr::from_buffer(&buffer);
     Ok(match action.as_str() {
         s if s == "SCREEN" => ErrorDevice::Screen,
