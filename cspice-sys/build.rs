@@ -32,7 +32,7 @@ fn main() {
         Some(downloaded)
     });
 
-    let cspice_dir =
+    let mut cspice_dir =
 		cspice_dir.expect("Cannot build: CSPICE_DIR environment variable was not provided, no CSPICE install was found, and feature \"downloadcspice\" is disabled.");
 
     if !cspice_dir.is_dir() {
@@ -40,6 +40,16 @@ fn main() {
             "Provided {CSPICE_DIR} ({}) is not a directory",
             cspice_dir.display()
         )
+    }
+
+    match env::consts::OS {
+        "linux" => {
+            cspice_dir = cspice_dir.join("linux");
+        },
+        "macos" => {
+            cspice_dir = cspice_dir.join("macos");
+        },
+        _ => panic!("Unsupported OS"),
     }
 
     let include_dir = cspice_dir.join("include");
