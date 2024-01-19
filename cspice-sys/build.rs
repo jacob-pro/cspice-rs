@@ -42,12 +42,12 @@ fn main() {
         )
     }
 
-    match env::consts::OS {
-        "linux" => {
-            cspice_dir = cspice_dir.join("linux");
+    match env::consts::ARCH {
+        "x86_64" => {
+            cspice_dir = cspice_dir.join("x86_64");
         },
-        "macos" => {
-            cspice_dir = cspice_dir.join("macos");
+        "aarch64" => {
+            cspice_dir = cspice_dir.join("aarch64");
         },
         _ => panic!("Unsupported OS"),
     }
