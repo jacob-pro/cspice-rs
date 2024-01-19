@@ -98,7 +98,7 @@ impl SpiceStr<'_> {
             .expect("missing nul terminator");
         let subslice = &buffer[..nul_pos + 1];
         unsafe {
-            let u8slice = &*(subslice as *const [i8] as *const [u8]);
+            let u8slice = &*(subslice as *const [std::os::raw::c_char] as *const [u8]);
             Self(CStr::from_bytes_with_nul_unchecked(u8slice))
         }
     }
