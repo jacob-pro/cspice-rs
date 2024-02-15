@@ -45,10 +45,10 @@ fn main() {
     match env::consts::ARCH {
         "x86_64" => {
             cspice_dir = cspice_dir.join("x86_64");
-        },
+        }
         "aarch64" => {
             cspice_dir = cspice_dir.join("aarch64");
-        },
+        }
         _ => panic!("Unsupported OS"),
     }
 
