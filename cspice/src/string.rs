@@ -98,7 +98,11 @@ impl SpiceStr<'_> {
             .expect("missing nul terminator");
         let subslice = &buffer[..nul_pos + 1];
         unsafe {
-            let u8slice = &*(subslice as *const [i8] as *const [u8]);
+            // `&[u8]` cannot be cast to `*const [i8]` on platforms where the C `char` type is
+            // unsigned (e.g. aarch64, where `SpiceChar` is `u8`), so reinterpret the slice
+            // through raw pointers instead. This is architecturally neutral.
+            let u8slice =
+                std::slice::from_raw_parts(subslice.as_ptr() as *const u8, subslice.len());
             Self(CStr::from_bytes_with_nul_unchecked(u8slice))
         }
     }
