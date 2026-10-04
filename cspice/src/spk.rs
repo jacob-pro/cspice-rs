@@ -6,7 +6,7 @@ use crate::string::StringParam;
 use crate::time::Et;
 use crate::vector::Vector3D;
 use crate::{with_spice_lock_or_panic, Error};
-use cspice_sys::{spkez_c, spkezp_c, spkezr_c, spkpos_c, SpiceDouble};
+use cspice_sys::{spkez_c, spkezp_c, spkezr_c, spkpos_c, SpiceDouble, SpiceInt};
 use derive_more::Into;
 
 /// A Cartesian state vector representing the position and velocity of the target body
@@ -67,11 +67,11 @@ where
 ///
 /// See [spkez_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkez_c.html).
 pub fn easy_reader<'r, R>(
-    target: i32,
+    target: SpiceInt,
     et: Et,
     reference_frame: R,
     aberration_correction: AberrationCorrection,
-    observing_body: i32,
+    observing_body: SpiceInt,
 ) -> Result<(State, SpiceDouble), Error>
 where
     R: Into<StringParam<'r>>,
@@ -101,11 +101,11 @@ where
 ///
 /// See [spkezp_c](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezp_c.html).
 pub fn easy_position<'r, R>(
-    target: i32,
+    target: SpiceInt,
     et: Et,
     reference_frame: R,
     aberration_correction: AberrationCorrection,
-    observing_body: i32,
+    observing_body: SpiceInt,
 ) -> Result<(Rectangular, SpiceDouble), Error>
 where
     R: Into<StringParam<'r>>,

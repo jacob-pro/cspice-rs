@@ -65,9 +65,6 @@ fn initialise_library(guard: &ReentrantMutexGuard<'static, RefCell<bool>>) {
     }
 }
 
-#[derive(Debug)]
-pub struct SpiceLock(ReentrantMutexGuard<'static, RefCell<bool>>);
-
 /// Error returned from [try_with_spice_lock()].
 #[derive(Debug, Clone, Error)]
 #[cfg_attr(not(test), error("SPICE is already in use by another thread. If multi-threaded use is intentional wrap the call using `with_spice_lock()`."))]
