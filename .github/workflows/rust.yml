@@ -58,6 +58,28 @@ jobs:
       - name: Cargo Clippy Check
         run: cargo clippy --workspace -- -D warnings
 
+  check_aarch64:
+    runs-on: ubuntu-latest
+    env:
+      CSPICE_DIR: '${{ github.workspace }}/cspice'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download CSPICE
+        run: wget https://naif.jpl.nasa.gov/pub/naif/toolkit//C/PC_Linux_GCC_64bit/packages/cspice.tar.Z
+
+      - name: Extract CSPICE
+        run: tar -zxvf cspice.tar.Z
+
+      - name: Fix libcspice name
+        run: mv $CSPICE_DIR/lib/cspice.a $CSPICE_DIR/lib/libcspice.a
+
+      - name: Add aarch64 target
+        run: rustup target add aarch64-unknown-linux-gnu
+
+      - name: Cargo Check aarch64
+        run: cargo check -p cspice --target aarch64-unknown-linux-gnu
+
   build_with_auto_download:
     runs-on: ${{ matrix.os }}
     strategy:
