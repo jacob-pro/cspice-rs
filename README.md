@@ -1,5 +1,10 @@
 # cspice-rs
 
+[![Build](https://github.com/jacob-pro/cspice-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/jacob-pro/cspice-rs/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/cspice.svg)](https://crates.io/crates/cspice)
+[![Documentation](https://docs.rs/cspice/badge.svg)](https://docs.rs/cspice)
+[![License](https://img.shields.io/crates/l/cspice.svg)](./LICENSE)
+
 Rust bindings for [CSPICE](https://naif.jpl.nasa.gov/naif/toolkit.html), the spacecraft geometry
 toolkit from NASA/JPL's
 [Navigation and Ancillary Information Facility](https://naif.jpl.nasa.gov/). SPICE provides
@@ -68,6 +73,8 @@ fn main() -> Result<(), cspice::Error> {
 }
 ```
 
+A runnable version of this example is in [`cspice/examples/moon.rs`](./cspice/examples/moon.rs).
+
 ## Error handling
 
 CSPICE's default error action is `ABORT`, which terminates the whole process. This crate switches
@@ -88,15 +95,26 @@ or [`cspice::try_with_spice_lock()`] to keep the rest of the library sound.
 
 The `cspice` crate currently wraps:
 
-- **Kernel management** — `furnsh` / `unload`
-- **Ephemeris (SPK)** — position and state queries by body name or NAIF ID, with aberration
+- **Kernel management**: `furnsh` / `unload`
+- **Ephemeris (SPK)**: position and state queries by body name or NAIF ID, with aberration
   corrections
-- **Time** — `Et` seconds-past-J2000, string conversion in both directions, calendars, Julian
+- **Time**: `Et` seconds-past-J2000, string conversion in both directions, calendars, Julian
   dates, `DateTime` and `JulianDate` types
-- **Coordinates** — rectangular, azimuth/elevation and related systems
-- **Error handling** — error action and output device configuration, structured errors
-- **Cells and windows** — SPICE `SpiceCell` based interval arithmetic
-- **Geometry finder** — angular separation searches
+- **Coordinates**: rectangular, azimuth/elevation and related systems
+- **Error handling**: error action and output device configuration, structured errors
+- **Cells and windows**: SPICE `SpiceCell` based interval arithmetic
+- **Geometry finder**: angular separation searches
+
+## Contributing
+
+Issues and pull requests are welcome. The test suite needs single-threaded execution because the
+SPICE library is guarded by one global lock:
+
+```bash
+cargo test --workspace -- --test-threads=1
+```
+
+CI additionally checks formatting, clippy and dependency sorting on Linux, macOS and Windows.
 
 ## License
 
