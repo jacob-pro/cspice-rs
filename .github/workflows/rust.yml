@@ -59,6 +59,12 @@ jobs:
       - name: Cargo Test
         run: cargo test -- --nocapture --test-threads=1
 
+      # The example loads its kernels by relative path, so it has to run from the
+      # test data directory.
+      - name: Run Example
+        working-directory: cspice/test_data
+        run: cargo run -p cspice --example moon
+
       - name: Cargo Clippy Check
         run: cargo clippy --workspace -- -D warnings
 
