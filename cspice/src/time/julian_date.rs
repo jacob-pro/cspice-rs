@@ -5,7 +5,7 @@ use crate::time::date_time::DateTime;
 use crate::time::system::System;
 use crate::time::Et;
 use crate::with_spice_lock_or_panic;
-use cspice_sys::{timout_c, SpiceDouble};
+use cspice_sys::{timout_c, SpiceDouble, SpiceInt};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
@@ -51,7 +51,7 @@ impl<S: System> From<Et> for JulianDate<S> {
                 timout_c(
                     et.0,
                     pictur.as_mut_ptr(),
-                    buffer.len() as i32,
+                    buffer.len() as SpiceInt,
                     buffer.as_mut_ptr(),
                 )
             };

@@ -92,7 +92,7 @@ fn download_cspice(out_dir: &Path) {
     let (platform, extension) = match env::consts::OS {
         "linux" => ("PC_Linux_GCC_64bit", "tar.Z"),
         "macos" => (
-            if cfg!(target_arch = "arm") {
+            if cfg!(target_arch = "aarch64") {
                 "MacM1_OSX_clang_64bit"
             } else {
                 "MacIntel_OSX_AppleC_64bit"
