@@ -48,32 +48,14 @@ cspice-sys = { version = "1.0", features = ["downloadcspice"] }
 
 ## Usage
 
-```rust
-use cspice::common::AberrationCorrection;
-use cspice::data::furnish;
-use cspice::spk::easier_reader;
-use cspice::time::Et;
+See [`cspice/examples/moon.rs`](./cspice/examples/moon.rs) for a runnable example: it loads the
+leap second kernel and a planetary ephemeris, converts a UTC string into ephemeris time and
+queries the state of the Moon relative to the Earth. Both kernels are in
+[`cspice/test_data`](./cspice/test_data), so `cargo run -p cspice --example moon` works from that
+directory; NAIF publishes the same files under
+[generic kernels](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/).
 
-fn main() -> Result<(), cspice::Error> {
-    // Load kernels, e.g. from https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
-    furnish("naif0012.tls")?; // leap seconds kernel, required for time conversion
-    furnish("de432s.bsp")?;   // planetary ephemeris
-
-    // Parse a UTC string into ephemeris time, seconds past J2000 TDB
-    let et = Et::from_string("2026-10-05T12:00:00")?;
-
-    // State of the Moon relative to Earth in the J2000 frame, corrected for light time
-    let (state, light_time) = easier_reader("MOON", et, "J2000", AberrationCorrection::LT, "EARTH")?;
-
-    println!(
-        "Moon wrt Earth: x = {} km, y = {} km, z = {} km, one-way light time = {} s",
-        state.position.x, state.position.y, state.position.z, light_time
-    );
-    Ok(())
-}
-```
-
-A runnable version of this example is in [`cspice/examples/moon.rs`](./cspice/examples/moon.rs).
+The example is compiled and run by CI, so it stays in sync with the API.
 
 ## Error handling
 
@@ -114,7 +96,8 @@ SPICE library is guarded by one global lock:
 cargo test --workspace -- --test-threads=1
 ```
 
-CI additionally checks formatting, clippy and dependency sorting on Linux, macOS and Windows.
+CI runs the test suite on Linux, macOS and Windows, and additionally checks clippy on all three,
+`cargo fmt --check` and `cargo-sort --check` on Linux.
 
 ## License
 
