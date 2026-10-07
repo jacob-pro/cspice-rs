@@ -112,11 +112,12 @@ fn download_cspice(out_dir: &Path) {
 
     let download_target = out_dir.join(format!("cspice.{}", extension));
 
-    let body = reqwest::blocking::get(url)
-        .expect("Failed to download CSPICE")
-        .bytes()
-        .unwrap();
-    std::fs::write(download_target, body).expect("Failed to write archive file");
+    println!("Downloading from: {}", url);
+
+    // Download CSPICE using ureq
+    let downloaded_bytes = download_cspice_sync(&url, &download_target);
+
+    println!("Download complete: {} bytes", downloaded_bytes);
 
     // Extract package based on platform
     match (env::consts::OS, extension) {
@@ -168,4 +169,97 @@ fn docs_rs(out_dir: &Path) {
         .expect("Unable to call tar");
     assert!(tar_status.success());
     env::set_var("CSPICE_DIR", headers_dir.as_os_str());
+}
+
+// Synchronous download implementation using ureq
+#[cfg(feature = "downloadcspice")]
+fn download_cspice_sync(url: &str, download_target: &PathBuf) -> u64 {
+    use std::io::{Read, Write};
+
+    // Send request with timeout configuration
+    let response = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(30))
+        .timeout_read(std::time::Duration::from_secs(60))
+        .build()
+        .get(url)
+        .call()
+        .expect("Failed to start CSPICE download");
+
+    // Check status code
+    if response.status() < 200 || response.status() >= 300 {
+        panic!(
+            "Failed to download CSPICE: HTTP {} from {}",
+            response.status(),
+            url
+        );
+    }
+
+    // Get content size
+    let total_size = response
+        .header("Content-Length")
+        .and_then(|s| s.parse::<u64>().ok());
+    
+    if let Some(size) = total_size {
+        println!(
+            "Download size: {} bytes ({} MB)",
+            size,
+            size / (1024 * 1024)
+        );
+    }
+
+    // Create output file
+    let mut file = std::fs::File::create(download_target).expect("Failed to create download file");
+
+    let mut downloaded = 0u64;
+    let mut reader = response.into_reader();
+    let mut buffer = vec![0u8; 8192]; // 8KB buffer
+
+    // Show initial progress
+    println!("Starting download from {}", url);
+    if let Some(total) = total_size {
+        println!("Progress: 0 MB / {} MB (0%)", total / (1024 * 1024));
+    }
+
+    // Download with progress reporting
+    loop {
+        match reader.read(&mut buffer) {
+            Ok(0) => break, // EOF
+            Ok(n) => {
+                file.write_all(&buffer[..n])
+                    .expect("Failed to write to download file");
+                
+                downloaded += n as u64;
+
+                // Progress display (every 1MB)
+                if downloaded % (1024 * 1024) < n as u64 {
+                    if let Some(total) = total_size {
+                        let percent = (downloaded as f64 / total as f64 * 100.0) as u32;
+                        println!(
+                            "Progress: {} MB / {} MB ({}%)",
+                            downloaded / (1024 * 1024),
+                            total / (1024 * 1024),
+                            percent
+                        );
+                    } else {
+                        println!("Downloaded {} MB", downloaded / (1024 * 1024));
+                    }
+                }
+            }
+            Err(e) => panic!("Failed to read download chunk: {}", e),
+        }
+    }
+
+    file.flush().expect("Failed to flush download file");
+
+    // Verify download completion
+    if let Some(total) = total_size {
+        if downloaded != total {
+            panic!(
+                "Download incomplete: got {} bytes, expected {} bytes",
+                downloaded, total
+            );
+        }
+    }
+
+    downloaded
 }
